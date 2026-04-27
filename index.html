@@ -1008,7 +1008,9 @@ const height = window.innerHeight - 85;
 const svg = d3.select("#graph").attr("width", width).attr("height", height);
 const tooltip = d3.select("#tooltip");
 
-const g = svg.append("g");
+const gOuter = svg.append("g");
+const g = gOuter.append("g")
+  .attr("transform", `rotate(180, ${width/2}, ${height/2})`);
 
 // Zoom
 const zoomSlider = document.getElementById('zoom-slider');
@@ -1016,7 +1018,7 @@ const zoomVal = document.getElementById('zoom-val');
 const zoom = d3.zoom()
   .scaleExtent([0.1, 8])
   .on("zoom", (event) => {
-    g.attr("transform", event.transform);
+    gOuter.attr("transform", event.transform);
     zoomSlider.value = event.transform.k;
     zoomVal.textContent = Math.round(event.transform.k * 100) + '%';
   });
@@ -1460,19 +1462,21 @@ function renderTick() {
       let angle = Math.atan2(d.target.y - d.source.y, d.target.x - d.source.x) * 180 / Math.PI;
       if (angle > 90) angle -= 180;
       if (angle < -90) angle += 180;
-      return `rotate(${angle},${mx},${my})`;
+      return `rotate(${angle + 180},${mx},${my})`;
     });
   node
     .attr("cx", d => d.x)
     .attr("cy", d => d.y);
   companyLogo
     .attr("x", d => d.x - logoSize / 2)
-    .attr("y", d => d.y - logoSize / 2);
+    .attr("y", d => d.y - logoSize / 2)
+    .attr("transform", d => `rotate(180,${d.x},${d.y})`);
   label
     .attr("x", d => d.x)
-    .attr("y", d => d.y);
+    .attr("y", d => d.y)
+    .attr("transform", d => `rotate(180,${d.x},${d.y})`);
   supplierLabel
-    .attr("transform", d => `translate(${d.x},${d.y})`);
+    .attr("transform", d => `translate(${d.x},${d.y}) rotate(180)`);
 }
 
 simulation.on("tick", renderTick);
