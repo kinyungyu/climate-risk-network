@@ -1005,6 +1005,12 @@ function updateStatsBar() {
 // ===== D3 FORCE GRAPH =====
 const width = window.innerWidth;
 const height = window.innerHeight - 85;
+nodes.forEach(n => {
+  if (n.nodeType === "company") {
+    n.x = width / 2 + (n.company === "nestle" ? -60 : 60);
+    n.y = 80;
+  }
+});
 const svg = d3.select("#graph").attr("width", width).attr("height", height);
 const tooltip = d3.select("#tooltip");
 
