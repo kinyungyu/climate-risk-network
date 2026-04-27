@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapping Physical Climate Risks in the Global Factory and Supply Network</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; overflow: hidden; }
+
+#header {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: #fff;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  z-index: 10;
+  position: relative;
+}
+#header h1 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+#header .subtitle {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+#header .toggle-area {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.toggle-btn {
+  padding: 7px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 2px solid;
+  transition: all 0.25s;
+  letter-spacing: 0.3px;
+}
+.company-dropdown {
+  position: relative;
+  display: inline-block;
+}
+.company-dropdown-btn {
+  padding: 7px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 2px solid #64748b;
+  background: #334155;
+  color: #fff;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.company-dropdown-btn:hover { background: #475569; }
+.company-dropdown-btn .arrow { font-size: 10px; transition: transform 0.2s; }
+.company-dropdown.open .arrow { transform: rotate(180deg); }
+.company-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 10px;
+  padding: 8px 0;
+  min-width: 180px;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.company-dropdown.open .company-dropdown-menu { display: block; }
+.company-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.company-switch-row:hover { background: #334155; }
+.company-switch-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+.company-switch-label.nestle { color: #4ade80; }
+.company-switch-label.danone { color: #60a5fa; }
+.switch-track {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: #475569;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.switch-track.on { background: var(--on-color, #006B3F); }
+.switch-track.on.danone { background: #0072CE; }
+.switch-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: left 0.2s;
+}
+.switch-track.on .switch-thumb { left: 18px; }
+
+
+#legend {
+  position: absolute;
+  top: 100px;
+  right: 16px;
+  background: rgba(30, 41, 59, 0.95);
+  color: #e2e8f0;
+  padding: 14px 16px;
+  border-radius: 8px;
+  font-size: 11px;
+  z-index: 5;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  max-width: 200px;
+}
+.legend-section {
+  margin-bottom: 10px;
+}
+.legend-section-title {
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  margin-bottom: 5px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 3px;
+  font-size: 11px;
+}
+.legend-circle {
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.legend-line {
+  display: inline-block;
+  height: 3px;
+  flex-shrink: 0;
+}
+.legend-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.legend-toggle .switch-track { margin-left: auto; }
+.legend-toggle:hover { opacity: 0.85; }
+.legend-toggle .switch-track { width: 28px; height: 14px; border-radius: 7px; }
+.legend-toggle .switch-thumb { width: 10px; height: 10px; top: 2px; left: 2px; }
+.legend-toggle .switch-track.on .switch-thumb { left: 16px; }
+
+#graph {
+  width: 100vw;
+  height: calc(100vh - 125px);
+  background: #f8fafc;
+}
+
+#zoom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 10;
+  padding: 0 24px;
+  border-top: 1px solid #334155;
+}
+#zoom-bar label {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+#zoom-bar .zoom-val {
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 42px;
+  text-align: center;
+}
+#zoom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: min(400px, 40vw);
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #334155 0%, #475569 100%);
+  outline: none;
+  cursor: pointer;
+}
+#zoom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  border: 2px solid #1e293b;
+  box-shadow: 0 0 6px rgba(59,130,246,0.5);
+  cursor: pointer;
+}
+#zoom-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  border: 2px solid #1e293b;
+  box-shadow: 0 0 6px rgba(59,130,246,0.5);
+  cursor: pointer;
+}
+#zoom-bar button {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid #475569;
+  color: #e2e8f0;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+#zoom-bar button:hover { background: rgba(255,255,255,0.15); }
+
+#scorecard-btn {
+  position: absolute;
+  top: 100px;
+  left: 16px;
+  background: linear-gradient(135deg, #0f3460, #1a1a2e);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 6;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  letter-spacing: 0.3px;
+}
+#scorecard-btn:hover { filter: brightness(1.2); }
+
+#scorecard {
+  display: none;
+  position: absolute;
+  top: 100px;
+  left: 16px;
+  background: rgba(15, 23, 42, 0.97);
+  color: #e2e8f0;
+  padding: 18px 20px;
+  border-radius: 10px;
+  z-index: 7;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  width: 420px;
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+  font-size: 12px;
+}
+#scorecard h3 {
+  font-size: 15px;
+  margin-bottom: 4px;
+  color: #fff;
+}
+#scorecard .sc-sub {
+  font-size: 10px;
+  color: #64748b;
+  margin-bottom: 14px;
+}
+#scorecard .sc-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 18px;
+  cursor: pointer;
+}
+.sc-item {
+  background: rgba(30, 41, 59, 0.8);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  border-left: 4px solid #64748b;
+}
+.sc-item.severity-critical { border-left-color: #B71C1C; }
+.sc-item.severity-high { border-left-color: #E53935; }
+.sc-item.severity-elevated { border-left-color: #FF8F00; }
+.sc-item.severity-moderate { border-left-color: #FFD54F; }
+.sc-item .sc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.sc-item .sc-num {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 700;
+}
+.sc-item .sc-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  flex: 1;
+  margin-left: 8px;
+}
+.sc-item .sc-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #fff;
+}
+.sc-badge.critical { background: #B71C1C; }
+.sc-badge.high { background: #E53935; }
+.sc-badge.elevated { background: #FF8F00; }
+.sc-badge.moderate { background: #FFD54F; color: #333; }
+.sc-item .sc-body {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+.sc-item .sc-metric {
+  display: inline-block;
+  background: rgba(255,255,255,0.08);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0 2px;
+}
+
+.tooltip {
+  position: absolute;
+  background: rgba(15, 23, 42, 0.96);
+  color: #e2e8f0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 20;
+  max-width: 320px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  line-height: 1.5;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.tooltip .tt-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+  margin-bottom: 4px;
+}
+.tooltip .tt-sub {
+  color: #94a3b8;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+.tooltip .tt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tooltip .tt-label {
+  color: #94a3b8;
+}
+.tooltip .tt-val {
+  font-weight: 600;
+  color: #fff;
+}
+.tooltip .tt-risk {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.tooltip .tt-divider {
+  border-top: 1px solid #334155;
+  margin: 5px 0;
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>Mapping Physical Climate Risks in the Global Factory and Supply Network</h1>
+
+  </div>
+  <div class="toggle-area">
+    <div class="company-dropdown" id="company-dropdown">
+      <button class="company-dropdown-btn" onclick="document.getElementById('company-dropdown').classList.toggle('open')">
+        Companies <span class="arrow">&#9660;</span>
+      </button>
+      <div class="company-dropdown-menu">
+        <div class="company-switch-row" onclick="toggleCompany('nestle')">
+          <span class="company-switch-label nestle">Nestl&eacute;</span>
+          <div class="switch-track on" id="switch-nestle"><div class="switch-thumb"></div></div>
+        </div>
+        <div class="company-switch-row" onclick="toggleCompany('danone')">
+          <span class="company-switch-label danone">Danone</span>
+          <div class="switch-track on danone" id="switch-danone"><div class="switch-thumb"></div></div>
+        </div>
+      </div>
+    </div>
+    <button class="toggle-btn" id="save-layout-btn" onclick="saveLayout()" style="background:#475569;border-color:#475569;color:#fff;font-size:11px;">Save Layout</button>
+    <button class="toggle-btn" id="clear-layout-btn" onclick="clearLayout()" style="background:transparent;border-color:#475569;color:#94a3b8;font-size:11px;">Clear</button>
+  </div>
+</div>
+
+
+<div id="legend">
+  <div class="legend-section">
+    <div class="legend-section-title">Node Types</div>
+    <div class="legend-toggle" onclick="toggleNodeType('company')"><span class="legend-circle" style="width:12px;height:12px;background:linear-gradient(135deg,#006B3F,#0072CE);"></span><span id="lbl-nt-company">Company</span><div class="switch-track on" id="switch-nt-company" style="--on-color:#006B3F;"><div class="switch-thumb"></div></div></div>
+    <div class="legend-toggle" onclick="toggleNodeType('region')"><span class="legend-circle" style="width:12px;height:12px;background:#006B3F;"></span><span id="lbl-nt-region">Region</span><div class="switch-track on" id="switch-nt-region" style="--on-color:#006B3F;"><div class="switch-thumb"></div></div></div>
+    <div class="legend-toggle" onclick="toggleNodeType('country')"><span class="legend-circle" style="width:12px;height:12px;background:#4682B4;"></span><span id="lbl-nt-country">Country</span><div class="switch-track on" id="switch-nt-country" style="--on-color:#4682B4;"><div class="switch-thumb"></div></div></div>
+    <div class="legend-toggle" onclick="toggleNodeType('factory')"><span class="legend-circle" style="width:12px;height:12px;background:#999;border:0.5px solid #555;"></span><span id="lbl-nt-factory">Factory</span><div class="switch-track on" id="switch-nt-factory" style="--on-color:#666;"><div class="switch-thumb"></div></div></div>
+    <div class="legend-toggle" onclick="toggleNodeType('product')"><span class="legend-circle" style="width:12px;height:12px;background:#7B1FA2;"></span><span id="lbl-nt-product">Product</span><div class="switch-track on" id="switch-nt-product" style="--on-color:#7B1FA2;"><div class="switch-thumb"></div></div></div>
+    <div class="legend-toggle" onclick="toggleNodeType('supplier')"><span class="legend-circle" style="width:12px;height:12px;background:#FF9800;border:0.5px solid #E65100;"></span><span id="lbl-nt-supplier">Supplier</span><div class="switch-track on" id="switch-nt-supplier" style="--on-color:#E65100;"><div class="switch-thumb"></div></div></div>
+  </div>
+  <div class="legend-section">
+    <div class="legend-section-title">Climate Risk Level</div>
+    <div class="legend-toggle" onclick="toggleRiskLevel('Extreme')"><span class="legend-circle" style="width:10px;height:10px;background:#B71C1C;"></span><span id="lbl-rl-Extreme">Extreme</span><div class="switch-track on" id="switch-rl-Extreme" style="--on-color:#B71C1C;"><div class="switch-thumb"></div></div></div>
+    <div class="legend-toggle" onclick="toggleRiskLevel('High')"><span class="legend-circle" style="width:10px;height:10px;background:#E53935;"></span><span id="lbl-rl-High">High</span><div class="switch-track on" id="switch-rl-High" style="--on-color:#E53935;"><div class="switch-thumb"></div></div></div>
+    <div class="legend-toggle" onclick="toggleRiskLevel('Medium-High')"><span class="legend-circle" style="width:10px;height:10px;background:#FF8F00;"></span><span id="lbl-rl-Medium-High">Medium-High</span><div class="switch-track on" id="switch-rl-Medium-High" style="--on-color:#FF8F00;"><div class="switch-thumb"></div></div></div>
+    <div class="legend-toggle" onclick="toggleRiskLevel('Medium')"><span class="legend-circle" style="width:10px;height:10px;background:#FFD54F;"></span><span id="lbl-rl-Medium">Medium</span><div class="switch-track on" id="switch-rl-Medium" style="--on-color:#FFD54F;"><div class="switch-thumb"></div></div></div>
+    <div class="legend-toggle" onclick="toggleRiskLevel('Low-Medium')"><span class="legend-circle" style="width:10px;height:10px;background:#81C784;"></span><span id="lbl-rl-Low-Medium">Low-Medium</span><div class="switch-track on" id="switch-rl-Low-Medium" style="--on-color:#81C784;"><div class="switch-thumb"></div></div></div>
+    <div class="legend-toggle" onclick="toggleRiskLevel('Low')"><span class="legend-circle" style="width:10px;height:10px;background:#C8E6C9;"></span><span id="lbl-rl-Low">Low</span><div class="switch-track on" id="switch-rl-Low" style="--on-color:#C8E6C9;"><div class="switch-thumb"></div></div></div>
+  </div>
+  <div class="legend-section">
+    <div class="legend-section-title">Edge Types</div>
+    <div class="legend-item"><span class="legend-line" style="width:20px;background:#006B3F;"></span> Company/Region</div>
+    <div class="legend-item"><span class="legend-line" style="width:20px;background:#aaa;height:1px;"></span> Country &rarr; Factory</div>
+    <div class="legend-item"><span class="legend-line" style="width:20px;background:#CE93D8;height:1px;border-top:1px dashed #CE93D8;background:none;"></span> Factory &rarr; Product</div>
+    <div class="legend-item"><span class="legend-line" style="width:20px;background:none;border-top:1.5px dashed #FF9800;"></span> Supplier &rarr; Company</div>
+  </div>
+</div>
+
+<button id="scorecard-btn" onclick="toggleScorecard()">Scorecard</button>
+<div id="scorecard"></div>
+<svg id="graph"></svg>
+<div class="tooltip" id="tooltip"></div>
+<div id="zoom-bar">
+  <label>Zoom</label>
+  <button onclick="zoomStep(-0.2)">&minus;</button>
+  <input type="range" id="zoom-slider" min="0.1" max="8" step="0.05" value="1" oninput="zoomTo(this.value)">
+  <button onclick="zoomStep(0.2)">+</button>
+  <span class="zoom-val" id="zoom-val">100%</span>
+  <button onclick="zoomTo(1)" style="font-size:11px;width:auto;padding:0 8px;">Reset</button>
+</div>
+
+<script>
+// ===== NESTLE FACTORY DATA =====
+const F=[{"region": "North America", "country": "USA", "city": "Solon, Ohio", "type": "Frozen food (Stouffer's, Lean Cuisine), R&D Center", "lat": 41.3898, "lon": -81.4412, "erv": 270, "emp": 975, "labourM": 76, "revM": 390, "dailyRevM": 1.56, "prob": 0.015, "duration": 4, "revLostEvent": 1.2, "ealM": 0, "stop30M": 46.8, "slow90M": 70.2, "var": 5.4, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "North America", "country": "USA", "city": "Jonesboro, Arkansas", "type": "Frozen food (Stouffer's, Lean Cuisine)", "lat": 35.8423, "lon": -90.7043, "erv": 360, "emp": 1100, "labourM": 85.8, "revM": 440, "dailyRevM": 1.76, "prob": 0.06, "duration": 14, "revLostEvent": 12.3, "ealM": 0.8, "stop30M": 52.8, "slow90M": 79.2, "var": 28.8, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low", "Tropical Cyclone": "Medium", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High"}}, {"region": "North America", "country": "USA", "city": "Gaffney, South Carolina", "type": "Frozen food (Stouffer's, Lean Cuisine)", "lat": 35.0718, "lon": -81.6498, "erv": 180, "emp": 500, "labourM": 39, "revM": 200, "dailyRevM": 0.8, "prob": 0.03, "duration": 7, "revLostEvent": 2, "ealM": 0.1, "stop30M": 24, "slow90M": 36, "var": 7.2, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Medium", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "North America", "country": "USA", "city": "Anderson, Indiana", "type": "Beverages (Nesquik RTD, Coffee-Mate)", "lat": 40.1053, "lon": -85.6803, "erv": 300, "emp": 550, "labourM": 42.9, "revM": 247.5, "dailyRevM": 0.99, "prob": 0.015, "duration": 4, "revLostEvent": 0.8, "ealM": 0, "stop30M": 29.7, "slow90M": 44.5, "var": 6.0, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "North America", "country": "USA", "city": "Glendale, Arizona", "type": "Beverages (Coffee mate, Starbucks creamers)", "lat": 33.5387, "lon": -112.186, "erv": 210, "emp": 350, "labourM": 27.3, "revM": 157.5, "dailyRevM": 0.63, "prob": 0.12, "duration": 25, "revLostEvent": 11, "ealM": 1.5, "stop30M": 18.9, "slow90M": 28.4, "var": 31.5, "hazards": {"Riverine Flood": "Low", "Coastal Flood": "Low", "Drought/Water Stress": "Extreme", "Extreme Heat": "Extreme", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "High"}}, {"region": "North America", "country": "USA", "city": "Fort Wayne, Indiana", "type": "Beverages", "lat": 41.0793, "lon": -85.1394, "erv": 140, "emp": 350, "labourM": 27.3, "revM": 140, "dailyRevM": 0.56, "prob": 0.015, "duration": 4, "revLostEvent": 0.4, "ealM": 0, "stop30M": 16.8, "slow90M": 25.2, "var": 2.8, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "North America", "country": "USA", "city": "St. Louis, Missouri", "type": "Pet food (Purina HQ & factory)", "lat": 38.627, "lon": -90.1994, "erv": 200, "emp": 350, "labourM": 27.3, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.06, "duration": 14, "revLostEvent": 5.4, "ealM": 0.3, "stop30M": 23.1, "slow90M": 34.6, "var": 16.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High"}}, {"region": "North America", "country": "USA", "city": "Bloomfield, Missouri", "type": "Pet food (Purina cat litter)", "lat": 36.8862, "lon": -89.9293, "erv": 200, "emp": 420, "labourM": 32.8, "revM": 231, "dailyRevM": 0.92, "prob": 0.03, "duration": 7, "revLostEvent": 2.3, "ealM": 0.1, "stop30M": 27.7, "slow90M": 41.6, "var": 8.0, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "North America", "country": "USA", "city": "Hartwell, Georgia", "type": "Pet food (Purina)", "lat": 34.3529, "lon": -82.9321, "erv": 415, "emp": 350, "labourM": 27.3, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.03, "duration": 7, "revLostEvent": 1.9, "ealM": 0.1, "stop30M": 23.1, "slow90M": 34.6, "var": 16.6, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "North America", "country": "USA", "city": "Fairburn, Georgia", "type": "Pet food (Purina)", "lat": 33.5671, "lon": -84.581, "erv": 200, "emp": 350, "labourM": 27.3, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.03, "duration": 7, "revLostEvent": 1.9, "ealM": 0.1, "stop30M": 23.1, "slow90M": 34.6, "var": 8.0, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "North America", "country": "USA", "city": "Eden, North Carolina", "type": "Pet food (Purina)", "lat": 36.4888, "lon": -79.7667, "erv": 585, "emp": 350, "labourM": 27.3, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.03, "duration": 7, "revLostEvent": 1.9, "ealM": 0.1, "stop30M": 23.1, "slow90M": 34.6, "var": 23.4, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Medium", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "North America", "country": "USA", "city": "Williamsburg Twp, Ohio", "type": "Pet food (Purina)", "lat": 39.0556, "lon": -84.053, "erv": 715, "emp": 350, "labourM": 27.3, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.015, "duration": 4, "revLostEvent": 0.6, "ealM": 0, "stop30M": 23.1, "slow90M": 34.6, "var": 14.3, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "North America", "country": "USA", "city": "King William, Virginia", "type": "Pet food (Purina)", "lat": 37.6885, "lon": -77.008, "erv": 235, "emp": 420, "labourM": 32.8, "revM": 231, "dailyRevM": 0.92, "prob": 0.06, "duration": 14, "revLostEvent": 6.5, "ealM": 0.5, "stop30M": 27.7, "slow90M": 41.6, "var": 18.8, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low", "Tropical Cyclone": "Medium-High", "Sea Level Rise": "Medium", "Overall Physical Risk": "Medium-High"}}, {"region": "North America", "country": "USA", "city": "Clinton, Iowa", "type": "Pet food (Purina)", "lat": 41.8445, "lon": -90.1888, "erv": 205, "emp": 420, "labourM": 32.8, "revM": 231, "dailyRevM": 0.92, "prob": 0.03, "duration": 7, "revLostEvent": 2.3, "ealM": 0.1, "stop30M": 27.7, "slow90M": 41.6, "var": 8.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "North America", "country": "USA", "city": "Flagstaff, Arizona", "type": "Pet food (Purina)", "lat": 35.1983, "lon": -111.6513, "erv": 200, "emp": 402, "labourM": 31.4, "revM": 221.1, "dailyRevM": 0.88, "prob": 0.06, "duration": 14, "revLostEvent": 6.2, "ealM": 0.5, "stop30M": 26.5, "slow90M": 39.8, "var": 16.0, "hazards": {"Riverine Flood": "Low", "Coastal Flood": "Low", "Drought/Water Stress": "Extreme", "Extreme Heat": "Medium", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High"}}, {"region": "North America", "country": "USA", "city": "Crete, Nebraska", "type": "Pet food (Purina)", "lat": 40.6278, "lon": -96.9614, "erv": 200, "emp": 350, "labourM": 27.3, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.03, "duration": 7, "revLostEvent": 1.9, "ealM": 0.1, "stop30M": 23.1, "slow90M": 34.6, "var": 8.0, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "North America", "country": "USA", "city": "Davenport, Iowa", "type": "Pet food (Purina)", "lat": 41.5236, "lon": -90.5776, "erv": 200, "emp": 350, "labourM": 27.3, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.03, "duration": 7, "revLostEvent": 1.9, "ealM": 0.1, "stop30M": 23.1, "slow90M": 34.6, "var": 8.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "North America", "country": "USA", "city": "Denver, Colorado", "type": "Pet food (Purina)", "lat": 39.7392, "lon": -104.9903, "erv": 200, "emp": 350, "labourM": 27.3, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.06, "duration": 14, "revLostEvent": 5.4, "ealM": 0.3, "stop30M": 23.1, "slow90M": 34.6, "var": 16.0, "hazards": {"Riverine Flood": "Low-Medium", "Coastal Flood": "Low", "Drought/Water Stress": "High", "Extreme Heat": "Medium", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High"}}, {"region": "North America", "country": "USA", "city": "Mechanicsburg, Pennsylvania", "type": "Pet food (Purina)", "lat": 40.2143, "lon": -76.9994, "erv": 200, "emp": 350, "labourM": 27.3, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.015, "duration": 4, "revLostEvent": 0.6, "ealM": 0, "stop30M": 23.1, "slow90M": 34.6, "var": 4.0, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "North America", "country": "USA", "city": "Oklahoma City, Oklahoma", "type": "Pet food (Purina)", "lat": 35.4676, "lon": -97.5164, "erv": 200, "emp": 350, "labourM": 27.3, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.06, "duration": 14, "revLostEvent": 5.4, "ealM": 0.3, "stop30M": 23.1, "slow90M": 34.6, "var": 16.0, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High"}}, {"region": "North America", "country": "USA", "city": "Fremont, Michigan", "type": "Baby food (Gerber)", "lat": 43.4672, "lon": -85.942, "erv": 200, "emp": 517, "labourM": 40.3, "revM": 258.5, "dailyRevM": 1.03, "prob": 0.015, "duration": 4, "revLostEvent": 0.8, "ealM": 0, "stop30M": 31, "slow90M": 46.5, "var": 4.0, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "North America", "country": "USA", "city": "Fort Smith, Arkansas", "type": "Baby food (Gerber)", "lat": 35.3859, "lon": -94.3985, "erv": 200, "emp": 450, "labourM": 35.1, "revM": 225, "dailyRevM": 0.9, "prob": 0.06, "duration": 14, "revLostEvent": 6.3, "ealM": 0.5, "stop30M": 27, "slow90M": 40.5, "var": 16.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low", "Tropical Cyclone": "Medium", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High"}}, {"region": "North America", "country": "USA", "city": "Burlington, Wisconsin", "type": "Confectionery (Nestle chocolate)", "lat": 42.6781, "lon": -88.2762, "erv": 130, "emp": 400, "labourM": 31.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.015, "duration": 4, "revLostEvent": 0.4, "ealM": 0, "stop30M": 16.8, "slow90M": 25.2, "var": 2.6, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "North America", "country": "USA", "city": "Bridgewater, New Jersey", "type": "Health Science (NHSc HQ, PTC)", "lat": 40.5984, "lon": -74.6046, "erv": 300, "emp": 1500, "labourM": 117, "revM": 300, "dailyRevM": 1.2, "prob": 0.03, "duration": 7, "revLostEvent": 2.9, "ealM": 0.1, "stop30M": 36, "slow90M": 54, "var": 12.0, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Medium", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium"}}, {"region": "North America", "country": "USA", "city": "Arlington, Virginia", "type": "Nestle USA HQ", "lat": 38.8816, "lon": -77.091, "erv": 150, "emp": 800, "labourM": 62.4, "revM": 0, "dailyRevM": 0, "prob": 0.03, "duration": 7, "revLostEvent": 0, "ealM": 0, "stop30M": 0, "slow90M": 0, "var": 6.0, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "High", "Wildfire": "Low", "Tropical Cyclone": "Medium", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium"}}, {"region": "North America", "country": "Canada", "city": "Toronto area, Ontario", "type": "Confectionery, beverages", "lat": 43.6532, "lon": -79.3832, "erv": 125, "emp": 400, "labourM": 27.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.015, "duration": 4, "revLostEvent": 0.4, "ealM": 0, "stop30M": 16.8, "slow90M": 25.2, "var": 2.5, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low", "Extreme Heat": "Low-Medium", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "North America", "country": "Canada", "city": "London, Ontario", "type": "Frozen food", "lat": 42.9849, "lon": -81.2453, "erv": 170, "emp": 500, "labourM": 34, "revM": 200, "dailyRevM": 0.8, "prob": 0.015, "duration": 4, "revLostEvent": 0.6, "ealM": 0, "stop30M": 24, "slow90M": 36, "var": 3.4, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low", "Extreme Heat": "Low-Medium", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "North America", "country": "Canada", "city": "Trenton, Ontario", "type": "Pet food (Purina)", "lat": 44.1005, "lon": -77.5778, "erv": 190, "emp": 350, "labourM": 23.8, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.015, "duration": 4, "revLostEvent": 0.6, "ealM": 0, "stop30M": 23.1, "slow90M": 34.6, "var": 3.8, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low", "Extreme Heat": "Low-Medium", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "North America", "country": "Canada", "city": "Sterling Road, Toronto", "type": "Confectionery", "lat": 43.6629, "lon": -79.448, "erv": 125, "emp": 400, "labourM": 27.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.015, "duration": 4, "revLostEvent": 0.4, "ealM": 0, "stop30M": 16.8, "slow90M": 25.2, "var": 2.5, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low", "Extreme Heat": "Low-Medium", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "Switzerland", "city": "Vevey", "type": "Global HQ; Nestle R&D Center", "lat": 46.4603, "lon": 6.842, "erv": 1090, "emp": 1724, "labourM": 215.5, "revM": 344.8, "dailyRevM": 1.38, "prob": 0.015, "duration": 4, "revLostEvent": 1.1, "ealM": 0, "stop30M": 41.4, "slow90M": 62.1, "var": 21.8, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "Switzerland", "city": "Orbe", "type": "Nespresso capsules", "lat": 46.7254, "lon": 6.5313, "erv": 360, "emp": 300, "labourM": 37.5, "revM": 210, "dailyRevM": 0.84, "prob": 0.015, "duration": 4, "revLostEvent": 0.7, "ealM": 0, "stop30M": 25.2, "slow90M": 37.8, "var": 7.2, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "Switzerland", "city": "Romont", "type": "Nespresso capsules", "lat": 46.6934, "lon": 6.919, "erv": 360, "emp": 300, "labourM": 37.5, "revM": 210, "dailyRevM": 0.84, "prob": 0.015, "duration": 4, "revLostEvent": 0.7, "ealM": 0, "stop30M": 25.2, "slow90M": 37.8, "var": 7.2, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "Switzerland", "city": "Avenches", "type": "Nespresso capsules", "lat": 46.8816, "lon": 7.0418, "erv": 360, "emp": 300, "labourM": 37.5, "revM": 210, "dailyRevM": 0.84, "prob": 0.015, "duration": 4, "revLostEvent": 0.7, "ealM": 0, "stop30M": 25.2, "slow90M": 37.8, "var": 7.2, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "Switzerland", "city": "Konolfingen", "type": "Dairy, infant nutrition, R&D", "lat": 46.8788, "lon": 7.6213, "erv": 350, "emp": 672, "labourM": 84, "revM": 336, "dailyRevM": 1.34, "prob": 0.015, "duration": 4, "revLostEvent": 1.1, "ealM": 0, "stop30M": 40.3, "slow90M": 60.5, "var": 7.0, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "Switzerland", "city": "Broc", "type": "Chocolate (Cailler)", "lat": 46.6091, "lon": 7.098, "erv": 235, "emp": 459, "labourM": 57.4, "revM": 160.7, "dailyRevM": 0.64, "prob": 0.015, "duration": 4, "revLostEvent": 0.5, "ealM": 0, "stop30M": 19.3, "slow90M": 28.9, "var": 4.7, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "Switzerland", "city": "Wangen bei Olten", "type": "Frozen food (Buitoni, Maggi)", "lat": 47.2388, "lon": 7.8689, "erv": 260, "emp": 500, "labourM": 62.5, "revM": 200, "dailyRevM": 0.8, "prob": 0.015, "duration": 4, "revLostEvent": 0.6, "ealM": 0, "stop30M": 24, "slow90M": 36, "var": 5.2, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "Switzerland", "city": "Henniez", "type": "Water (Henniez)", "lat": 46.7247, "lon": 6.8753, "erv": 205, "emp": 180, "labourM": 22.5, "revM": 57.6, "dailyRevM": 0.23, "prob": 0.015, "duration": 4, "revLostEvent": 0.2, "ealM": 0, "stop30M": 6.9, "slow90M": 10.4, "var": 4.1, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "Switzerland", "city": "Rorschach", "type": "Coffee (Nescafe)", "lat": 47.4774, "lon": 9.4906, "erv": 220, "emp": 250, "labourM": 31.2, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.015, "duration": 4, "revLostEvent": 0.4, "ealM": 0, "stop30M": 13.5, "slow90M": 20.2, "var": 4.4, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "UK", "city": "York", "type": "Confectionery (KitKat, Aero, Yorkie)", "lat": 53.96, "lon": -1.0873, "erv": 1320, "emp": 520, "labourM": 30.2, "revM": 182, "dailyRevM": 0.73, "prob": 0.03, "duration": 7, "revLostEvent": 1.8, "ealM": 0.1, "stop30M": 21.8, "slow90M": 32.8, "var": 52.8, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "UK", "city": "Halifax", "type": "Confectionery (Quality Street, After Eight)", "lat": 53.721, "lon": -1.8627, "erv": 180, "emp": 459, "labourM": 26.6, "revM": 160.7, "dailyRevM": 0.64, "prob": 0.03, "duration": 7, "revLostEvent": 1.6, "ealM": 0, "stop30M": 19.3, "slow90M": 28.9, "var": 7.2, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "UK", "city": "Fawdon, Newcastle", "type": "Confectionery (Smarties, Fruit Pastilles)", "lat": 55.0072, "lon": -1.6268, "erv": 230, "emp": 720, "labourM": 41.8, "revM": 252, "dailyRevM": 1.01, "prob": 0.03, "duration": 7, "revLostEvent": 2.5, "ealM": 0.1, "stop30M": 30.2, "slow90M": 45.4, "var": 9.2, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "UK", "city": "Tutbury (Hatton), Derbyshire", "type": "Coffee (Nescafe Original, Gold, Azera, Dolce Gusto)", "lat": 52.862, "lon": -1.681, "erv": 215, "emp": 710, "labourM": 41.2, "revM": 319.5, "dailyRevM": 1.28, "prob": 0.03, "duration": 7, "revLostEvent": 3.1, "ealM": 0.1, "stop30M": 38.3, "slow90M": 57.5, "var": 8.6, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "UK", "city": "Dalston, Cumbria", "type": "Coffee (Nescafe Cappuccino, Coffee Mate, Starbucks Latte)", "lat": 54.8439, "lon": -2.9867, "erv": 215, "emp": 325, "labourM": 18.9, "revM": 146.2, "dailyRevM": 0.58, "prob": 0.015, "duration": 4, "revLostEvent": 0.5, "ealM": 0, "stop30M": 17.5, "slow90M": 26.3, "var": 4.3, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Low-Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "UK", "city": "Girvan, Scotland", "type": "Confectionery", "lat": 55.2466, "lon": -4.8565, "erv": 145, "emp": 400, "labourM": 23.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.03, "duration": 7, "revLostEvent": 1.4, "ealM": 0, "stop30M": 16.8, "slow90M": 25.2, "var": 5.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "UK", "city": "Buxton, Derbyshire", "type": "Water (Buxton)", "lat": 53.259, "lon": -1.9114, "erv": 140, "emp": 180, "labourM": 10.4, "revM": 57.6, "dailyRevM": 0.23, "prob": 0.015, "duration": 4, "revLostEvent": 0.2, "ealM": 0, "stop30M": 6.9, "slow90M": 10.4, "var": 2.8, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Low-Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "UK", "city": "Staverton", "type": "Cereals (Cereal Partners)", "lat": 51.8387, "lon": -2.1538, "erv": 120, "emp": 200, "labourM": 11.6, "revM": 76, "dailyRevM": 0.3, "prob": 0.03, "duration": 7, "revLostEvent": 0.7, "ealM": 0, "stop30M": 9.1, "slow90M": 13.7, "var": 4.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "UK", "city": "Welwyn Garden City", "type": "Cereals (Cereal Partners)", "lat": 51.8009, "lon": -0.1988, "erv": 120, "emp": 200, "labourM": 11.6, "revM": 76, "dailyRevM": 0.3, "prob": 0.03, "duration": 7, "revLostEvent": 0.7, "ealM": 0, "stop30M": 9.1, "slow90M": 13.7, "var": 4.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "France", "city": "Vergeze, Gard", "type": "Water (Perrier)", "lat": 43.7439, "lon": 4.22, "erv": 145, "emp": 206, "labourM": 12.8, "revM": 65.9, "dailyRevM": 0.26, "prob": 0.12, "duration": 25, "revLostEvent": 4.6, "ealM": 0.7, "stop30M": 7.9, "slow90M": 11.9, "var": 21.8, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium-High", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "France", "city": "Vittel, Vosges", "type": "Water (Vittel)", "lat": 48.2037, "lon": 5.9479, "erv": 130, "emp": 180, "labourM": 11.2, "revM": 57.6, "dailyRevM": 0.23, "prob": 0.06, "duration": 14, "revLostEvent": 1.6, "ealM": 0.1, "stop30M": 6.9, "slow90M": 10.4, "var": 10.4, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium-High"}}, {"region": "Europe", "country": "France", "city": "Noisiel, Seine-et-Marne", "type": "Nestle France HQ; chocolate", "lat": 48.847, "lon": 2.625, "erv": 160, "emp": 800, "labourM": 49.6, "revM": 0, "dailyRevM": 0, "prob": 0.06, "duration": 14, "revLostEvent": 0, "ealM": 0.1, "stop30M": 0, "slow90M": 0, "var": 12.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium-High"}}, {"region": "Europe", "country": "France", "city": "Itancourt, Aisne", "type": "Infant nutrition (Guigoz)", "lat": 49.7906, "lon": 3.284, "erv": 210, "emp": 450, "labourM": 27.9, "revM": 225, "dailyRevM": 0.9, "prob": 0.06, "duration": 14, "revLostEvent": 6.3, "ealM": 0.4, "stop30M": 27, "slow90M": 40.5, "var": 16.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium-High"}}, {"region": "Europe", "country": "France", "city": "Dieppe", "type": "Coffee (Nescafe)", "lat": 49.9246, "lon": 1.083, "erv": 160, "emp": 250, "labourM": 15.5, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.06, "duration": 14, "revLostEvent": 3.1, "ealM": 0.2, "stop30M": 13.5, "slow90M": 20.2, "var": 12.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium-High"}}, {"region": "Europe", "country": "France", "city": "Challerange", "type": "Baby food (Nestle Bebe)", "lat": 49.2373, "lon": 4.8244, "erv": 210, "emp": 450, "labourM": 27.9, "revM": 225, "dailyRevM": 0.9, "prob": 0.06, "duration": 14, "revLostEvent": 6.3, "ealM": 0.4, "stop30M": 27, "slow90M": 40.5, "var": 16.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium-High"}}, {"region": "Europe", "country": "France", "city": "Pontarlier", "type": "Confectionery", "lat": 46.9073, "lon": 6.3535, "erv": 135, "emp": 400, "labourM": 24.8, "revM": 140, "dailyRevM": 0.56, "prob": 0.06, "duration": 14, "revLostEvent": 3.9, "ealM": 0.2, "stop30M": 16.8, "slow90M": 25.2, "var": 10.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium-High"}}, {"region": "Europe", "country": "France", "city": "Beauvais", "type": "Prepared dishes (Maggi, Herta)", "lat": 49.4305, "lon": 2.0807, "erv": 125, "emp": 300, "labourM": 18.6, "revM": 105, "dailyRevM": 0.42, "prob": 0.06, "duration": 14, "revLostEvent": 2.9, "ealM": 0.2, "stop30M": 12.6, "slow90M": 18.9, "var": 10.0, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium-High"}}, {"region": "Europe", "country": "Germany", "city": "Frankfurt am Main", "type": "Nestle Germany HQ", "lat": 50.1109, "lon": 8.6821, "erv": 165, "emp": 800, "labourM": 54.4, "revM": 0, "dailyRevM": 0, "prob": 0.03, "duration": 7, "revLostEvent": 0, "ealM": 0, "stop30M": 0, "slow90M": 0, "var": 6.6, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Germany", "city": "Schwerin", "type": "Coffee (Nescafe Dolce Gusto)", "lat": 53.6355, "lon": 11.4012, "erv": 310, "emp": 450, "labourM": 30.6, "revM": 202.5, "dailyRevM": 0.81, "prob": 0.03, "duration": 7, "revLostEvent": 2, "ealM": 0.1, "stop30M": 24.3, "slow90M": 36.5, "var": 12.4, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Germany", "city": "Hamburg", "type": "Coffee (Nescafe)", "lat": 53.5511, "lon": 9.9937, "erv": 165, "emp": 250, "labourM": 17, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.03, "duration": 7, "revLostEvent": 1.1, "ealM": 0, "stop30M": 13.5, "slow90M": 20.2, "var": 6.6, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Germany", "city": "Biessenhofen", "type": "Infant nutrition (BEBA)", "lat": 47.8327, "lon": 10.6331, "erv": 220, "emp": 450, "labourM": 30.6, "revM": 225, "dailyRevM": 0.9, "prob": 0.03, "duration": 7, "revLostEvent": 2.2, "ealM": 0.1, "stop30M": 27, "slow90M": 40.5, "var": 8.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Germany", "city": "Euskirchen", "type": "Confectionery", "lat": 50.6605, "lon": 6.787, "erv": 145, "emp": 400, "labourM": 27.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.03, "duration": 7, "revLostEvent": 1.4, "ealM": 0, "stop30M": 16.8, "slow90M": 25.2, "var": 5.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Germany", "city": "Ludinghausen", "type": "Prepared dishes (Maggi)", "lat": 51.7666, "lon": 7.4441, "erv": 130, "emp": 300, "labourM": 20.4, "revM": 105, "dailyRevM": 0.42, "prob": 0.03, "duration": 7, "revLostEvent": 1, "ealM": 0, "stop30M": 12.6, "slow90M": 18.9, "var": 5.2, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Germany", "city": "Singen", "type": "Confectionery (chocolate)", "lat": 47.7596, "lon": 8.8402, "erv": 145, "emp": 400, "labourM": 27.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.03, "duration": 7, "revLostEvent": 1.4, "ealM": 0, "stop30M": 16.8, "slow90M": 25.2, "var": 5.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Germany", "city": "Neuss", "type": "Pet food (Purina)", "lat": 51.1984, "lon": 6.6912, "erv": 220, "emp": 350, "labourM": 23.8, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.03, "duration": 7, "revLostEvent": 1.9, "ealM": 0.1, "stop30M": 23.1, "slow90M": 34.6, "var": 8.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Spain", "city": "Esplugues de Llobregat, Barcelona", "type": "Nestle Espana HQ", "lat": 41.3788, "lon": 2.0888, "erv": 120, "emp": 800, "labourM": 36, "revM": 0, "dailyRevM": 0, "prob": 0.12, "duration": 25, "revLostEvent": 0, "ealM": 0.3, "stop30M": 0, "slow90M": 0, "var": 18.0, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Spain", "city": "Girona", "type": "Coffee (Nescafe Dolce Gusto)", "lat": 41.9794, "lon": 2.8214, "erv": 120, "emp": 250, "labourM": 11.2, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.12, "duration": 25, "revLostEvent": 7.9, "ealM": 1, "stop30M": 13.5, "slow90M": 20.2, "var": 18.0, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Spain", "city": "La Penilla, Cantabria", "type": "Dairy, chocolate", "lat": 43.211, "lon": -3.813, "erv": 105, "emp": 400, "labourM": 18, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.4, "stop30M": 16.8, "slow90M": 25.2, "var": 15.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Spain", "city": "Reus, Tarragona", "type": "Coffee (Nescafe)", "lat": 41.1549, "lon": 1.105, "erv": 120, "emp": 250, "labourM": 11.2, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.12, "duration": 25, "revLostEvent": 7.9, "ealM": 1, "stop30M": 13.5, "slow90M": 20.2, "var": 18.0, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Spain", "city": "Miajadas, Caceres", "type": "Prepared dishes (Maggi)", "lat": 39.1498, "lon": -6.0067, "erv": 95, "emp": 300, "labourM": 13.5, "revM": 105, "dailyRevM": 0.42, "prob": 0.12, "duration": 25, "revLostEvent": 7.3, "ealM": 1, "stop30M": 12.6, "slow90M": 18.9, "var": 14.2, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Italy", "city": "San Pellegrino Terme, Bergamo", "type": "Water (S.Pellegrino)", "lat": 45.834, "lon": 9.6609, "erv": 120, "emp": 180, "labourM": 9.4, "revM": 57.6, "dailyRevM": 0.23, "prob": 0.03, "duration": 7, "revLostEvent": 0.6, "ealM": 0, "stop30M": 6.9, "slow90M": 10.4, "var": 4.8, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Italy", "city": "Perugia", "type": "Confectionery (Baci Perugina)", "lat": 43.1107, "lon": 12.3908, "erv": 140, "emp": 459, "labourM": 23.9, "revM": 160.7, "dailyRevM": 0.64, "prob": 0.12, "duration": 25, "revLostEvent": 11.2, "ealM": 1.5, "stop30M": 19.3, "slow90M": 28.9, "var": 21.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium-High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Italy", "city": "Benevento", "type": "Confectionery (Perugina)", "lat": 41.1297, "lon": 14.7814, "erv": 110, "emp": 400, "labourM": 20.8, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.4, "stop30M": 16.8, "slow90M": 25.2, "var": 16.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium-High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Italy", "city": "Moretta, Cuneo", "type": "Coffee (Nescafe)", "lat": 44.766, "lon": 7.5414, "erv": 130, "emp": 250, "labourM": 13, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.12, "duration": 25, "revLostEvent": 7.9, "ealM": 1, "stop30M": 13.5, "slow90M": 20.2, "var": 19.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium-High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Italy", "city": "Cislago, Varese", "type": "Levissima water", "lat": 45.661, "lon": 8.9743, "erv": 85, "emp": 180, "labourM": 9.4, "revM": 57.6, "dailyRevM": 0.23, "prob": 0.12, "duration": 25, "revLostEvent": 4, "ealM": 0.6, "stop30M": 6.9, "slow90M": 10.4, "var": 12.8, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium-High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Poland", "city": "Rzeszow", "type": "Coffee (Nescafe)", "lat": 50.0412, "lon": 21.9991, "erv": 80, "emp": 250, "labourM": 6.5, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.03, "duration": 7, "revLostEvent": 1.1, "ealM": 0, "stop30M": 13.5, "slow90M": 20.2, "var": 3.2, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Poland", "city": "Kalisz", "type": "Cereals", "lat": 51.7611, "lon": 18.0914, "erv": 60, "emp": 200, "labourM": 5.2, "revM": 76, "dailyRevM": 0.3, "prob": 0.03, "duration": 7, "revLostEvent": 0.7, "ealM": 0, "stop30M": 9.1, "slow90M": 13.7, "var": 2.4, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Poland", "city": "Namyslow", "type": "Prepared dishes (Maggi, Winiary)", "lat": 51.0781, "lon": 17.7164, "erv": 65, "emp": 300, "labourM": 7.8, "revM": 105, "dailyRevM": 0.42, "prob": 0.03, "duration": 7, "revLostEvent": 1, "ealM": 0, "stop30M": 12.6, "slow90M": 18.9, "var": 2.6, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Poland", "city": "Nowa Wies Wroclawska", "type": "Pet food (Purina)", "lat": 51.05, "lon": 16.8667, "erv": 110, "emp": 350, "labourM": 9.1, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.03, "duration": 7, "revLostEvent": 1.9, "ealM": 0.1, "stop30M": 23.1, "slow90M": 34.6, "var": 4.4, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Turkiye", "city": "Karacabey, Bursa", "type": "Dairy, confectionery", "lat": 40.2133, "lon": 28.3594, "erv": 65, "emp": 400, "labourM": 7.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.3, "stop30M": 16.8, "slow90M": 25.2, "var": 9.8, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Turkiye", "city": "Bolu", "type": "Water (Erikli)", "lat": 40.7319, "lon": 31.6068, "erv": 50, "emp": 180, "labourM": 3.2, "revM": 57.6, "dailyRevM": 0.23, "prob": 0.12, "duration": 25, "revLostEvent": 4, "ealM": 0.5, "stop30M": 6.9, "slow90M": 10.4, "var": 7.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Turkiye", "city": "Gebze, Kocaeli", "type": "Confectionery (KitKat Chunky)", "lat": 40.8027, "lon": 29.4307, "erv": 80, "emp": 400, "labourM": 7.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.3, "stop30M": 16.8, "slow90M": 25.2, "var": 12.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Turkiye", "city": "Bursa", "type": "Coffee", "lat": 40.1828, "lon": 29.0669, "erv": 75, "emp": 250, "labourM": 4.5, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.12, "duration": 25, "revLostEvent": 7.9, "ealM": 0.9, "stop30M": 13.5, "slow90M": 20.2, "var": 11.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Turkiye", "city": "Selale, Hendek", "type": "Pet food (Purina)", "lat": 40.7919, "lon": 30.7522, "erv": 100, "emp": 350, "labourM": 6.3, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.12, "duration": 25, "revLostEvent": 13.5, "ealM": 1.6, "stop30M": 23.1, "slow90M": 34.6, "var": 15.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Netherlands", "city": "Nunspeet", "type": "Coffee (Nescafe)", "lat": 52.3766, "lon": 5.7856, "erv": 170, "emp": 250, "labourM": 16.2, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.12, "duration": 25, "revLostEvent": 7.9, "ealM": 1, "stop30M": 13.5, "slow90M": 20.2, "var": 25.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Portugal", "city": "Avanca", "type": "Dairy (Nestle)", "lat": 40.805, "lon": -8.5766, "erv": 110, "emp": 400, "labourM": 12.8, "revM": 152, "dailyRevM": 0.61, "prob": 0.12, "duration": 25, "revLostEvent": 10.6, "ealM": 1.4, "stop30M": 18.2, "slow90M": 27.4, "var": 16.5, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Extreme", "Extreme Heat": "High", "Wildfire": "Extreme", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Czech Republic", "city": "Olomouc", "type": "Confectionery (ORION)", "lat": 49.5938, "lon": 17.2509, "erv": 70, "emp": 400, "labourM": 11.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.03, "duration": 7, "revLostEvent": 1.4, "ealM": 0, "stop30M": 16.8, "slow90M": 25.2, "var": 2.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Czech Republic", "city": "Zora, Olomouc", "type": "Confectionery", "lat": 49.5955, "lon": 17.2591, "erv": 70, "emp": 400, "labourM": 11.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.03, "duration": 7, "revLostEvent": 1.4, "ealM": 0, "stop30M": 16.8, "slow90M": 25.2, "var": 2.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Hungary", "city": "Buk", "type": "Pet food (Purina)", "lat": 47.3849, "lon": 16.7421, "erv": 100, "emp": 420, "labourM": 10.1, "revM": 231, "dailyRevM": 0.92, "prob": 0.06, "duration": 14, "revLostEvent": 6.5, "ealM": 0.4, "stop30M": 27.7, "slow90M": 41.6, "var": 8.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High"}}, {"region": "Europe", "country": "Hungary", "city": "Szerencs", "type": "Coffee, confectionery", "lat": 48.1598, "lon": 21.2072, "erv": 75, "emp": 250, "labourM": 6, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.06, "duration": 14, "revLostEvent": 3.1, "ealM": 0.2, "stop30M": 13.5, "slow90M": 20.2, "var": 6.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High"}}, {"region": "Europe", "country": "Russia", "city": "Perm", "type": "Confectionery", "lat": 58.0105, "lon": 56.2502, "erv": 60, "emp": 400, "labourM": 8, "revM": 140, "dailyRevM": 0.56, "prob": 0.03, "duration": 7, "revLostEvent": 1.4, "ealM": 0, "stop30M": 16.8, "slow90M": 25.2, "var": 2.4, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Low-Medium", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Russia", "city": "Vologda", "type": "Infant nutrition, dairy", "lat": 59.2205, "lon": 39.8915, "erv": 90, "emp": 450, "labourM": 9, "revM": 225, "dailyRevM": 0.9, "prob": 0.03, "duration": 7, "revLostEvent": 2.2, "ealM": 0.1, "stop30M": 27, "slow90M": 40.5, "var": 3.6, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Low-Medium", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "Europe", "country": "Sweden", "city": "Bjuv", "type": "Prepared dishes", "lat": 56.0816, "lon": 12.9252, "erv": 140, "emp": 300, "labourM": 21, "revM": 105, "dailyRevM": 0.42, "prob": 0.015, "duration": 4, "revLostEvent": 0.3, "ealM": 0, "stop30M": 12.6, "slow90M": 18.9, "var": 2.8, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Low", "Extreme Heat": "Low-Medium", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "Austria", "city": "Linz", "type": "Pet food (Purina Felix)", "lat": 48.3069, "lon": 14.2858, "erv": 210, "emp": 350, "labourM": 21.7, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.015, "duration": 4, "revLostEvent": 0.6, "ealM": 0, "stop30M": 23.1, "slow90M": 34.6, "var": 4.2, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium"}}, {"region": "Europe", "country": "Bulgaria", "city": "Sofia", "type": "Confectionery, ice cream", "lat": 42.6977, "lon": 23.3219, "erv": 50, "emp": 400, "labourM": 7.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.06, "duration": 14, "revLostEvent": 3.9, "ealM": 0.2, "stop30M": 16.8, "slow90M": 25.2, "var": 4.0, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium-High"}}, {"region": "Europe", "country": "Greece", "city": "Maroussi, Athens", "type": "Confectionery, dairy", "lat": 38.0506, "lon": 23.8063, "erv": 85, "emp": 400, "labourM": 12.8, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.3, "stop30M": 16.8, "slow90M": 25.2, "var": 12.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "Extreme", "Wildfire": "Extreme", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Europe", "country": "Romania", "city": "Timisoara", "type": "Confectionery, coffee", "lat": 45.7489, "lon": 21.2087, "erv": 70, "emp": 250, "labourM": 5.5, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.06, "duration": 14, "revLostEvent": 3.1, "ealM": 0.2, "stop30M": 13.5, "slow90M": 20.2, "var": 5.6, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High"}}, {"region": "India", "country": "India", "city": "Karnal, Haryana", "type": "Dairy, infant nutrition (NAN, Cerelac)", "lat": 29.6857, "lon": 76.9905, "erv": 95, "emp": 585, "labourM": 5, "revM": 292.5, "dailyRevM": 1.17, "prob": 0.12, "duration": 25, "revLostEvent": 20.5, "ealM": 2.5, "stop30M": 35.1, "slow90M": 52.6, "var": 14.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Low", "Drought/Water Stress": "Extreme", "Extreme Heat": "Extreme", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "High"}}, {"region": "India", "country": "India", "city": "Moga, Punjab", "type": "Dairy, infant nutrition", "lat": 30.8158, "lon": 75.1741, "erv": 95, "emp": 450, "labourM": 3.8, "revM": 225, "dailyRevM": 0.9, "prob": 0.12, "duration": 25, "revLostEvent": 15.7, "ealM": 1.9, "stop30M": 27, "slow90M": 40.5, "var": 14.2, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Extreme", "Extreme Heat": "Extreme", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "High"}}, {"region": "India", "country": "India", "city": "Nanjangud, Karnataka", "type": "Coffee (Nescafe), confectionery", "lat": 12.1167, "lon": 76.6839, "erv": 60, "emp": 250, "labourM": 2.1, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.25, "duration": 45, "revLostEvent": 18.2, "ealM": 4.6, "stop30M": 13.5, "slow90M": 20.2, "var": 15.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Extreme", "Extreme Heat": "Extreme", "Wildfire": "Medium", "Tropical Cyclone": "High", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "Extreme"}}, {"region": "India", "country": "India", "city": "Ponda, Goa", "type": "Dairy, prepared dishes (Maggi)", "lat": 15.4054, "lon": 74.0049, "erv": 50, "emp": 300, "labourM": 2.5, "revM": 105, "dailyRevM": 0.42, "prob": 0.12, "duration": 25, "revLostEvent": 7.3, "ealM": 0.9, "stop30M": 12.6, "slow90M": 18.9, "var": 7.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Medium-High", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "India", "country": "India", "city": "Samalkha, Haryana", "type": "Dairy", "lat": 29.2329, "lon": 77.0113, "erv": 65, "emp": 400, "labourM": 3.4, "revM": 152, "dailyRevM": 0.61, "prob": 0.25, "duration": 45, "revLostEvent": 24.6, "ealM": 6.3, "stop30M": 18.2, "slow90M": 27.4, "var": 16.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Extreme", "Extreme Heat": "Extreme", "Wildfire": "Medium", "Tropical Cyclone": "High", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "Extreme"}}, {"region": "India", "country": "India", "city": "Bicholim, Goa", "type": "Prepared dishes (Maggi)", "lat": 15.5907, "lon": 73.9567, "erv": 50, "emp": 300, "labourM": 2.5, "revM": 105, "dailyRevM": 0.42, "prob": 0.25, "duration": 45, "revLostEvent": 17, "ealM": 4.3, "stop30M": 12.6, "slow90M": 18.9, "var": 12.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Extreme", "Extreme Heat": "Extreme", "Wildfire": "Medium", "Tropical Cyclone": "High", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "Extreme"}}, {"region": "India", "country": "India", "city": "Tahliwal, Himachal Pradesh", "type": "Dairy, infant nutrition", "lat": 31.5367, "lon": 76.315, "erv": 80, "emp": 450, "labourM": 3.8, "revM": 225, "dailyRevM": 0.9, "prob": 0.25, "duration": 45, "revLostEvent": 36.5, "ealM": 9.2, "stop30M": 27, "slow90M": 40.5, "var": 20.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Extreme", "Extreme Heat": "Extreme", "Wildfire": "Medium", "Tropical Cyclone": "High", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "Extreme"}}, {"region": "India", "country": "India", "city": "Sanand, Gujarat", "type": "Confectionery (KitKat, Munch)", "lat": 22.9911, "lon": 72.3716, "erv": 935, "emp": 400, "labourM": 3.4, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.2, "stop30M": 16.8, "slow90M": 25.2, "var": 140.2, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "Extreme", "Wildfire": "Low-Medium", "Tropical Cyclone": "High", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "ASEAN", "country": "Malaysia", "city": "Shah Alam, Selangor", "type": "Beverages (Milo, Nescafe)", "lat": 3.0738, "lon": 101.5183, "erv": 150, "emp": 450, "labourM": 6.3, "revM": 202.5, "dailyRevM": 0.81, "prob": 0.12, "duration": 25, "revLostEvent": 14.2, "ealM": 1.7, "stop30M": 24.3, "slow90M": 36.5, "var": 22.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "ASEAN", "country": "Malaysia", "city": "Chembong, Negeri Sembilan", "type": "Dairy, beverages", "lat": 2.6222, "lon": 102.0167, "erv": 70, "emp": 350, "labourM": 4.9, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.2, "stop30M": 16.8, "slow90M": 25.2, "var": 10.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "ASEAN", "country": "Malaysia", "city": "Batu Tiga", "type": "Confectionery, ice cream", "lat": 3.105, "lon": 101.59, "erv": 65, "emp": 400, "labourM": 5.6, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.2, "stop30M": 16.8, "slow90M": 25.2, "var": 9.8, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "ASEAN", "country": "Indonesia", "city": "Karawang, West Java", "type": "Dairy, infant nutrition", "lat": -6.3064, "lon": 107.3384, "erv": 120, "emp": 450, "labourM": 3.1, "revM": 225, "dailyRevM": 0.9, "prob": 0.12, "duration": 25, "revLostEvent": 15.7, "ealM": 1.9, "stop30M": 27, "slow90M": 40.5, "var": 18.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Medium", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "ASEAN", "country": "Indonesia", "city": "Pasuruan, East Java", "type": "Beverages (Milo, Nescafe)", "lat": -7.6459, "lon": 112.9071, "erv": 60, "emp": 250, "labourM": 1.8, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.12, "duration": 25, "revLostEvent": 7.9, "ealM": 0.9, "stop30M": 13.5, "slow90M": 20.2, "var": 9.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Medium", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "ASEAN", "country": "Indonesia", "city": "Bandaraya, Central Java", "type": "Under construction", "lat": -7.05, "lon": 110.45, "erv": 50, "emp": 50, "labourM": 0.3, "revM": 0, "dailyRevM": 0, "prob": 0.12, "duration": 25, "revLostEvent": 0, "ealM": 0, "stop30M": 0, "slow90M": 0, "var": 7.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Medium", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "ASEAN", "country": "Philippines", "city": "Cabuyao, Laguna", "type": "Beverages, prepared dishes", "lat": 14.2714, "lon": 121.1253, "erv": 45, "emp": 300, "labourM": 1.9, "revM": 105, "dailyRevM": 0.42, "prob": 0.25, "duration": 45, "revLostEvent": 17, "ealM": 4.3, "stop30M": 12.6, "slow90M": 18.9, "var": 11.2, "hazards": {"Riverine Flood": "Extreme", "Coastal Flood": "Extreme", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Extreme", "Sea Level Rise": "Extreme", "Overall Physical Risk": "Extreme"}}, {"region": "ASEAN", "country": "Philippines", "city": "Cagayan de Oro", "type": "Dairy, beverages", "lat": 8.4542, "lon": 124.6319, "erv": 55, "emp": 350, "labourM": 2.3, "revM": 140, "dailyRevM": 0.56, "prob": 0.25, "duration": 45, "revLostEvent": 22.7, "ealM": 5.8, "stop30M": 16.8, "slow90M": 25.2, "var": 13.8, "hazards": {"Riverine Flood": "Extreme", "Coastal Flood": "Extreme", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Extreme", "Sea Level Rise": "Extreme", "Overall Physical Risk": "Extreme"}}, {"region": "ASEAN", "country": "Thailand", "city": "Navanakorn, Pathum Thani", "type": "Coffee (Nescafe), dairy", "lat": 14.0907, "lon": 100.6225, "erv": 70, "emp": 250, "labourM": 2.5, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.12, "duration": 25, "revLostEvent": 7.9, "ealM": 0.9, "stop30M": 13.5, "slow90M": 20.2, "var": 10.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Medium", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "ASEAN", "country": "Thailand", "city": "Chonburi", "type": "Pet food (Purina)", "lat": 13.3611, "lon": 100.9847, "erv": 90, "emp": 350, "labourM": 3.5, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.12, "duration": 25, "revLostEvent": 13.5, "ealM": 1.6, "stop30M": 23.1, "slow90M": 34.6, "var": 13.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Medium", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "ASEAN", "country": "Vietnam", "city": "Dong Nai", "type": "Coffee (Nescafe)", "lat": 10.947, "lon": 106.8432, "erv": 55, "emp": 250, "labourM": 1.5, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.12, "duration": 25, "revLostEvent": 7.9, "ealM": 0.9, "stop30M": 13.5, "slow90M": 20.2, "var": 8.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "High", "Sea Level Rise": "Extreme", "Overall Physical Risk": "High"}}, {"region": "ASEAN", "country": "Vietnam", "city": "Ba Vi, Hanoi", "type": "Dairy (La Vie water)", "lat": 21.0773, "lon": 105.381, "erv": 40, "emp": 180, "labourM": 1.1, "revM": 57.6, "dailyRevM": 0.23, "prob": 0.12, "duration": 25, "revLostEvent": 4, "ealM": 0.5, "stop30M": 6.9, "slow90M": 10.4, "var": 6.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "High", "Sea Level Rise": "Extreme", "Overall Physical Risk": "High"}}, {"region": "ASEAN", "country": "Singapore", "city": "Jurong", "type": "R&D Center", "lat": 1.3329, "lon": 103.7436, "erv": 360, "emp": 1500, "labourM": 108, "revM": 300, "dailyRevM": 1.2, "prob": 0.06, "duration": 14, "revLostEvent": 8.4, "ealM": 0.7, "stop30M": 36, "slow90M": 54, "var": 28.8, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "High", "Overall Physical Risk": "Medium-High"}}, {"region": "ASEAN", "country": "Sri Lanka", "city": "Kurunegala", "type": "Dairy, beverages (Milo)", "lat": 7.4867, "lon": 80.3647, "erv": 50, "emp": 350, "labourM": 1.9, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.2, "stop30M": 16.8, "slow90M": 25.2, "var": 7.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "High", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "ASEAN", "country": "Pakistan", "city": "Sheikhupura", "type": "Dairy, beverages", "lat": 31.7131, "lon": 73.9853, "erv": 40, "emp": 350, "labourM": 1.8, "revM": 140, "dailyRevM": 0.56, "prob": 0.25, "duration": 45, "revLostEvent": 22.7, "ealM": 5.8, "stop30M": 16.8, "slow90M": 25.2, "var": 10.0, "hazards": {"Riverine Flood": "Extreme", "Coastal Flood": "High", "Drought/Water Stress": "Extreme", "Extreme Heat": "Extreme", "Wildfire": "Medium", "Tropical Cyclone": "High", "Sea Level Rise": "High", "Overall Physical Risk": "Extreme"}}, {"region": "ASEAN", "country": "Pakistan", "city": "Kabirwala", "type": "Dairy", "lat": 30.4048, "lon": 71.8663, "erv": 50, "emp": 400, "labourM": 2, "revM": 152, "dailyRevM": 0.61, "prob": 0.25, "duration": 45, "revLostEvent": 24.6, "ealM": 6.3, "stop30M": 18.2, "slow90M": 27.4, "var": 12.5, "hazards": {"Riverine Flood": "Extreme", "Coastal Flood": "High", "Drought/Water Stress": "Extreme", "Extreme Heat": "Extreme", "Wildfire": "Medium", "Tropical Cyclone": "High", "Sea Level Rise": "High", "Overall Physical Risk": "Extreme"}}, {"region": "ASEAN", "country": "Bangladesh", "city": "Sreepur, Gazipur", "type": "Beverages, dairy", "lat": 24.124, "lon": 90.5023, "erv": 40, "emp": 350, "labourM": 1.4, "revM": 140, "dailyRevM": 0.56, "prob": 0.25, "duration": 45, "revLostEvent": 22.7, "ealM": 5.8, "stop30M": 16.8, "slow90M": 25.2, "var": 10.0, "hazards": {"Riverine Flood": "Extreme", "Coastal Flood": "Extreme", "Drought/Water Stress": "Medium-High", "Extreme Heat": "Extreme", "Wildfire": "Low", "Tropical Cyclone": "Extreme", "Sea Level Rise": "Extreme", "Overall Physical Risk": "Extreme"}}, {"region": "Oceania", "country": "Australia", "city": "Campbellfield, Victoria", "type": "Confectionery (KitKat, Smarties)", "lat": -37.6783, "lon": 144.9629, "erv": 255, "emp": 400, "labourM": 30, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.5, "stop30M": 16.8, "slow90M": 25.2, "var": 38.2, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "Extreme", "Wildfire": "Extreme", "Tropical Cyclone": "Medium", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Oceania", "country": "Australia", "city": "Tongala, Victoria", "type": "Dairy (Uncle Tobys)", "lat": -36.262, "lon": 144.956, "erv": 170, "emp": 400, "labourM": 30, "revM": 152, "dailyRevM": 0.61, "prob": 0.12, "duration": 25, "revLostEvent": 10.6, "ealM": 1.6, "stop30M": 18.2, "slow90M": 27.4, "var": 25.5, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "Extreme", "Wildfire": "Extreme", "Tropical Cyclone": "Medium", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Oceania", "country": "Australia", "city": "Smithtown, NSW", "type": "Dairy", "lat": -30.9268, "lon": 152.9603, "erv": 170, "emp": 400, "labourM": 30, "revM": 152, "dailyRevM": 0.61, "prob": 0.12, "duration": 25, "revLostEvent": 10.6, "ealM": 1.6, "stop30M": 18.2, "slow90M": 27.4, "var": 25.5, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "Extreme", "Wildfire": "Extreme", "Tropical Cyclone": "Medium", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Oceania", "country": "Australia", "city": "Blayney, NSW", "type": "Pet food (Purina)", "lat": -33.5341, "lon": 149.2575, "erv": 210, "emp": 350, "labourM": 26.2, "revM": 192.5, "dailyRevM": 0.77, "prob": 0.12, "duration": 25, "revLostEvent": 13.5, "ealM": 1.8, "stop30M": 23.1, "slow90M": 34.6, "var": 31.5, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "Extreme", "Wildfire": "Extreme", "Tropical Cyclone": "Medium", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Oceania", "country": "New Zealand", "city": "Auckland", "type": "Dairy, beverages", "lat": -36.8485, "lon": 174.7633, "erv": 135, "emp": 350, "labourM": 21.7, "revM": 140, "dailyRevM": 0.56, "prob": 0.03, "duration": 7, "revLostEvent": 1.4, "ealM": 0, "stop30M": 16.8, "slow90M": 25.2, "var": 5.4, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Low-Medium", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Medium", "Overall Physical Risk": "Medium"}}, {"region": "Middle East", "country": "UAE", "city": "Dubai (Jebel Ali)", "type": "Multiple categories", "lat": 24.9857, "lon": 55.0272, "erv": 155, "emp": 500, "labourM": 17.5, "revM": 200, "dailyRevM": 0.8, "prob": 0.12, "duration": 25, "revLostEvent": 14, "ealM": 1.8, "stop30M": 24, "slow90M": 36, "var": 23.2, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Extreme", "Extreme Heat": "Extreme", "Wildfire": "Low", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Middle East", "country": "Saudi Arabia", "city": "Jeddah", "type": "Dairy, beverages", "lat": 21.4858, "lon": 39.1925, "erv": 105, "emp": 350, "labourM": 9.8, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.3, "stop30M": 16.8, "slow90M": 25.2, "var": 15.8, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Medium", "Drought/Water Stress": "Extreme", "Extreme Heat": "Extreme", "Wildfire": "Low", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Africa", "country": "Egypt", "city": "6th of October City", "type": "Dairy, beverages, confectionery", "lat": 29.9356, "lon": 30.921, "erv": 55, "emp": 520, "labourM": 3.1, "revM": 182, "dailyRevM": 0.73, "prob": 0.12, "duration": 25, "revLostEvent": 12.7, "ealM": 1.5, "stop30M": 21.8, "slow90M": 32.8, "var": 8.2, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Extreme", "Extreme Heat": "Extreme", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "Middle East", "country": "Iran", "city": "Qazvin", "type": "Dairy, infant nutrition", "lat": 36.2688, "lon": 50.0041, "erv": 60, "emp": 450, "labourM": 3.1, "revM": 225, "dailyRevM": 0.9, "prob": 0.12, "duration": 25, "revLostEvent": 15.7, "ealM": 1.9, "stop30M": 27, "slow90M": 40.5, "var": 9.0, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Extreme", "Extreme Heat": "Extreme", "Wildfire": "Medium", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "High"}}, {"region": "Africa", "country": "South Africa", "city": "Bryanston, Johannesburg", "type": "ESAR HQ; multiple categories", "lat": -26.0609, "lon": 28.013, "erv": 145, "emp": 500, "labourM": 8, "revM": 200, "dailyRevM": 0.8, "prob": 0.12, "duration": 25, "revLostEvent": 14, "ealM": 1.8, "stop30M": 24, "slow90M": 36, "var": 21.8, "hazards": {"Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Africa", "country": "Nigeria", "city": "Sagamu, Ogun State", "type": "Beverages (Milo), Maggi cubes", "lat": 6.8421, "lon": 3.6496, "erv": 65, "emp": 540, "labourM": 3.8, "revM": 189, "dailyRevM": 0.76, "prob": 0.12, "duration": 25, "revLostEvent": 13.2, "ealM": 1.6, "stop30M": 22.7, "slow90M": 34, "var": 9.8, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Africa", "country": "Nigeria", "city": "Agbara, Ogun State", "type": "Dairy, water", "lat": 6.5101, "lon": 3.1001, "erv": 35, "emp": 180, "labourM": 1.3, "revM": 57.6, "dailyRevM": 0.23, "prob": 0.12, "duration": 25, "revLostEvent": 4, "ealM": 0.5, "stop30M": 6.9, "slow90M": 10.4, "var": 5.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Africa", "country": "Cote d'Ivoire", "city": "Abidjan", "type": "Beverages, confectionery", "lat": 5.36, "lon": -4.0083, "erv": 45, "emp": 400, "labourM": 3, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.2, "stop30M": 16.8, "slow90M": 25.2, "var": 6.8, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Africa", "country": "Ghana", "city": "Tema", "type": "Beverages (Milo, Nescafe)", "lat": 5.6698, "lon": -0.0166, "erv": 50, "emp": 287, "labourM": 1.9, "revM": 129.2, "dailyRevM": 0.52, "prob": 0.12, "duration": 25, "revLostEvent": 9, "ealM": 1.1, "stop30M": 15.5, "slow90M": 23.3, "var": 7.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Africa", "country": "Kenya", "city": "Nairobi", "type": "Beverages, dairy", "lat": -1.2921, "lon": 36.8219, "erv": 50, "emp": 350, "labourM": 2.5, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.2, "stop30M": 16.8, "slow90M": 25.2, "var": 7.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Africa", "country": "Senegal", "city": "Dakar", "type": "Dairy, Maggi cubes", "lat": 14.7167, "lon": -17.4677, "erv": 40, "emp": 300, "labourM": 1.9, "revM": 105, "dailyRevM": 0.42, "prob": 0.12, "duration": 25, "revLostEvent": 7.3, "ealM": 0.9, "stop30M": 12.6, "slow90M": 18.9, "var": 6.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium-High", "Tropical Cyclone": "Low", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "Africa", "country": "Cameroon", "city": "Douala", "type": "Beverages, Maggi", "lat": 4.0511, "lon": 9.7679, "erv": 40, "emp": 300, "labourM": 1.8, "revM": 105, "dailyRevM": 0.42, "prob": 0.12, "duration": 25, "revLostEvent": 7.3, "ealM": 0.9, "stop30M": 12.6, "slow90M": 18.9, "var": 6.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Brazil", "city": "Sao Paulo (Cacapava)", "type": "Dairy, beverages, confectionery", "lat": -23.1009, "lon": -45.7071, "erv": 115, "emp": 520, "labourM": 8.3, "revM": 182, "dailyRevM": 0.73, "prob": 0.12, "duration": 25, "revLostEvent": 12.7, "ealM": 1.6, "stop30M": 21.8, "slow90M": 32.8, "var": 17.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Brazil", "city": "Araras, Sao Paulo", "type": "Dairy, infant nutrition", "lat": -22.3567, "lon": -47.3837, "erv": 120, "emp": 450, "labourM": 7.2, "revM": 225, "dailyRevM": 0.9, "prob": 0.12, "duration": 25, "revLostEvent": 15.7, "ealM": 2, "stop30M": 27, "slow90M": 40.5, "var": 18.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Brazil", "city": "Feira de Santana, Bahia", "type": "Confectionery (Garoto)", "lat": -12.2669, "lon": -38.9664, "erv": 100, "emp": 400, "labourM": 6.4, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.2, "stop30M": 16.8, "slow90M": 25.2, "var": 15.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Brazil", "city": "Vila Velha, Espirito Santo", "type": "Confectionery (Garoto)", "lat": -20.3295, "lon": -40.2922, "erv": 100, "emp": 400, "labourM": 6.4, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.2, "stop30M": 16.8, "slow90M": 25.2, "var": 15.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Brazil", "city": "Ituiutaba, Minas Gerais", "type": "Dairy", "lat": -18.9697, "lon": -49.4639, "erv": 95, "emp": 400, "labourM": 6.4, "revM": 152, "dailyRevM": 0.61, "prob": 0.12, "duration": 25, "revLostEvent": 10.6, "ealM": 1.3, "stop30M": 18.2, "slow90M": 27.4, "var": 14.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Brazil", "city": "Montes Claros, Minas Gerais", "type": "Dairy", "lat": -16.735, "lon": -43.8622, "erv": 95, "emp": 400, "labourM": 6.4, "revM": 152, "dailyRevM": 0.61, "prob": 0.12, "duration": 25, "revLostEvent": 10.6, "ealM": 1.3, "stop30M": 18.2, "slow90M": 27.4, "var": 14.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Brazil", "city": "Sao Lourenco, Minas Gerais", "type": "Water (Sao Lourenco)", "lat": -22.0111, "lon": -45.0542, "erv": 60, "emp": 180, "labourM": 2.9, "revM": 57.6, "dailyRevM": 0.23, "prob": 0.12, "duration": 25, "revLostEvent": 4, "ealM": 0.5, "stop30M": 6.9, "slow90M": 10.4, "var": 9.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Mexico", "city": "Lagos de Moreno, Jalisco", "type": "Dairy, infant nutrition", "lat": 21.3556, "lon": -101.9301, "erv": 165, "emp": 450, "labourM": 5.8, "revM": 225, "dailyRevM": 0.9, "prob": 0.12, "duration": 25, "revLostEvent": 15.7, "ealM": 1.9, "stop30M": 27, "slow90M": 40.5, "var": 24.8, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium-High", "Tropical Cyclone": "High", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Mexico", "city": "Ocotlan, Jalisco", "type": "Dairy", "lat": 20.3497, "lon": -102.7701, "erv": 90, "emp": 400, "labourM": 5.2, "revM": 152, "dailyRevM": 0.61, "prob": 0.12, "duration": 25, "revLostEvent": 10.6, "ealM": 1.3, "stop30M": 18.2, "slow90M": 27.4, "var": 13.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium-High", "Tropical Cyclone": "High", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Mexico", "city": "Toluca, Estado de Mexico", "type": "Confectionery, beverages", "lat": 19.2826, "lon": -99.6557, "erv": 70, "emp": 400, "labourM": 5.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.2, "stop30M": 16.8, "slow90M": 25.2, "var": 10.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium-High", "Tropical Cyclone": "High", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Mexico", "city": "Mexico City", "type": "Regional LATAM HQ", "lat": 19.4326, "lon": -99.1332, "erv": 80, "emp": 800, "labourM": 10.4, "revM": 0, "dailyRevM": 0, "prob": 0.12, "duration": 25, "revLostEvent": 0, "ealM": 0.1, "stop30M": 0, "slow90M": 0, "var": 12.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium-High", "Tropical Cyclone": "High", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Mexico", "city": "Chiapa de Corzo, Chiapas", "type": "Coffee (Nescafe)", "lat": 16.7075, "lon": -93.0133, "erv": 80, "emp": 250, "labourM": 3.2, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.12, "duration": 25, "revLostEvent": 7.9, "ealM": 0.9, "stop30M": 13.5, "slow90M": 20.2, "var": 12.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium-High", "Tropical Cyclone": "High", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Mexico", "city": "Coatepec, Veracruz", "type": "Coffee (Nescafe)", "lat": 19.4571, "lon": -96.9614, "erv": 80, "emp": 250, "labourM": 3.2, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.12, "duration": 25, "revLostEvent": 7.9, "ealM": 0.9, "stop30M": 13.5, "slow90M": 20.2, "var": 12.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium-High", "Tropical Cyclone": "High", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Chile", "city": "Santiago (Macul)", "type": "Dairy, beverages, confectionery", "lat": -33.4889, "lon": -70.5993, "erv": 95, "emp": 520, "labourM": 11.4, "revM": 182, "dailyRevM": 0.73, "prob": 0.12, "duration": 25, "revLostEvent": 12.7, "ealM": 1.6, "stop30M": 21.8, "slow90M": 32.8, "var": 14.2, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Extreme", "Extreme Heat": "Medium", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Chile", "city": "Graneros", "type": "Dairy, infant nutrition", "lat": -34.0676, "lon": -70.7262, "erv": 120, "emp": 450, "labourM": 9.9, "revM": 225, "dailyRevM": 0.9, "prob": 0.12, "duration": 25, "revLostEvent": 15.7, "ealM": 2, "stop30M": 27, "slow90M": 40.5, "var": 18.0, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Extreme", "Extreme Heat": "Medium", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Chile", "city": "Osorno", "type": "Dairy", "lat": -40.573, "lon": -73.1354, "erv": 95, "emp": 400, "labourM": 8.8, "revM": 152, "dailyRevM": 0.61, "prob": 0.12, "duration": 25, "revLostEvent": 10.6, "ealM": 1.4, "stop30M": 18.2, "slow90M": 27.4, "var": 14.2, "hazards": {"Riverine Flood": "Medium", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Extreme", "Extreme Heat": "Medium", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Argentina", "city": "Buenos Aires (Villa Nueva)", "type": "Dairy, beverages", "lat": -34.4335, "lon": -60.1108, "erv": 65, "emp": 350, "labourM": 4.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.06, "duration": 14, "revLostEvent": 3.9, "ealM": 0.2, "stop30M": 16.8, "slow90M": 25.2, "var": 5.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "Medium-High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "Medium-High"}}, {"region": "Latin America", "country": "Colombia", "city": "Bugalagrande, Valle del Cauca", "type": "Dairy, beverages", "lat": 4.2104, "lon": -76.1577, "erv": 60, "emp": 350, "labourM": 3.5, "revM": 140, "dailyRevM": 0.56, "prob": 0.06, "duration": 14, "revLostEvent": 3.9, "ealM": 0.2, "stop30M": 16.8, "slow90M": 25.2, "var": 4.8, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Medium", "Tropical Cyclone": "Medium", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "Medium-High"}}, {"region": "Latin America", "country": "Colombia", "city": "Dosquebradas, Risaralda", "type": "Coffee (Nescafe)", "lat": 4.8399, "lon": -75.6726, "erv": 65, "emp": 250, "labourM": 2.5, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.06, "duration": 14, "revLostEvent": 3.1, "ealM": 0.2, "stop30M": 13.5, "slow90M": 20.2, "var": 5.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Medium", "Tropical Cyclone": "Medium", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "Medium-High"}}, {"region": "Latin America", "country": "Ecuador", "city": "Cayambe, Pichincha", "type": "Dairy, infant nutrition", "lat": 0.0389, "lon": -78.1403, "erv": 80, "emp": 450, "labourM": 4, "revM": 225, "dailyRevM": 0.9, "prob": 0.06, "duration": 14, "revLostEvent": 6.3, "ealM": 0.4, "stop30M": 27, "slow90M": 40.5, "var": 6.4, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "Medium-High"}}, {"region": "Latin America", "country": "Peru", "city": "Lima", "type": "Dairy, beverages", "lat": -12.0464, "lon": -77.0428, "erv": 55, "emp": 350, "labourM": 3.3, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.2, "stop30M": 16.8, "slow90M": 25.2, "var": 8.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "High", "Extreme Heat": "Medium-High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "Latin America", "country": "Venezuela", "city": "Barquisimeto", "type": "Dairy, beverages", "lat": 10.0678, "lon": -69.3474, "erv": 40, "emp": 350, "labourM": 1.8, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.2, "stop30M": 16.8, "slow90M": 25.2, "var": 6.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Medium", "Sea Level Rise": "Medium", "Overall Physical Risk": "High"}}, {"region": "China", "country": "China", "city": "Shuangcheng, Heilongjiang", "type": "Dairy", "lat": 45.3563, "lon": 126.2833, "erv": 130, "emp": 400, "labourM": 7.2, "revM": 152, "dailyRevM": 0.61, "prob": 0.03, "duration": 7, "revLostEvent": 1.5, "ealM": 0, "stop30M": 18.2, "slow90M": 27.4, "var": 5.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium"}}, {"region": "China", "country": "China", "city": "Laixi, Shandong", "type": "Dairy", "lat": 36.8608, "lon": 120.5264, "erv": 90, "emp": 400, "labourM": 7.2, "revM": 152, "dailyRevM": 0.61, "prob": 0.12, "duration": 25, "revLostEvent": 10.6, "ealM": 1.4, "stop30M": 18.2, "slow90M": 27.4, "var": 13.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Medium-High", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "China", "country": "China", "city": "Tianjin", "type": "Confectionery (Hsu Fu Chi)", "lat": 39.3434, "lon": 117.3616, "erv": 70, "emp": 400, "labourM": 7.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.3, "stop30M": 16.8, "slow90M": 25.2, "var": 10.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Extreme", "Extreme Heat": "High", "Wildfire": "Low", "Tropical Cyclone": "Medium", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "China", "country": "China", "city": "Dongguan, Guangdong", "type": "Confectionery (Hsu Fu Chi)", "lat": 23.0207, "lon": 113.7518, "erv": 70, "emp": 400, "labourM": 7.2, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.3, "stop30M": 16.8, "slow90M": 25.2, "var": 10.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Medium-High", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "China", "country": "China", "city": "Qingdao, Shandong", "type": "Beverages, water", "lat": 36.0671, "lon": 120.3826, "erv": 55, "emp": 180, "labourM": 3.2, "revM": 57.6, "dailyRevM": 0.23, "prob": 0.12, "duration": 25, "revLostEvent": 4, "ealM": 0.5, "stop30M": 6.9, "slow90M": 10.4, "var": 8.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Medium-High", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "China", "country": "China", "city": "Shanghai", "type": "Beverages, PTC", "lat": 31.2304, "lon": 121.4737, "erv": 75, "emp": 350, "labourM": 6.3, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.2, "stop30M": 16.8, "slow90M": 25.2, "var": 11.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Low", "Tropical Cyclone": "High", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "China", "country": "China", "city": "Beijing", "type": "GC regional HQ", "lat": 39.9042, "lon": 116.4074, "erv": 80, "emp": 800, "labourM": 14.4, "revM": 0, "dailyRevM": 0, "prob": 0.12, "duration": 25, "revLostEvent": 0, "ealM": 0.1, "stop30M": 0, "slow90M": 0, "var": 12.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Medium-High", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "China", "country": "China", "city": "Puer, Yunnan", "type": "Coffee (Nescafe)", "lat": 22.777, "lon": 100.9672, "erv": 80, "emp": 250, "labourM": 4.5, "revM": 112.5, "dailyRevM": 0.45, "prob": 0.12, "duration": 25, "revLostEvent": 7.9, "ealM": 0.9, "stop30M": 13.5, "slow90M": 20.2, "var": 12.0, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Medium-High", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "China", "country": "China", "city": "Shenzhen, Guangdong", "type": "Logistics & distribution", "lat": 22.5431, "lon": 114.0579, "erv": 45, "emp": 200, "labourM": 3.6, "revM": 30, "dailyRevM": 0.12, "prob": 0.12, "duration": 25, "revLostEvent": 2.1, "ealM": 0.3, "stop30M": 3.6, "slow90M": 5.4, "var": 6.8, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "High", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "China", "country": "China", "city": "Guangzhou, Guangdong", "type": "Infant nutrition", "lat": 23.1291, "lon": 113.2644, "erv": 110, "emp": 450, "labourM": 8.1, "revM": 225, "dailyRevM": 0.9, "prob": 0.12, "duration": 25, "revLostEvent": 15.7, "ealM": 2, "stop30M": 27, "slow90M": 40.5, "var": 16.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Medium-High", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "China", "country": "China", "city": "Harbin, Heilongjiang", "type": "Dairy, ice cream", "lat": 45.8038, "lon": 126.535, "erv": 90, "emp": 400, "labourM": 7.2, "revM": 152, "dailyRevM": 0.61, "prob": 0.12, "duration": 25, "revLostEvent": 10.6, "ealM": 1.4, "stop30M": 18.2, "slow90M": 27.4, "var": 13.5, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Medium-High", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}, {"region": "China", "country": "China", "city": "Yinlu, Xiamen", "type": "Beverages (Yinlu brand)", "lat": 24.4798, "lon": 118.0894, "erv": 75, "emp": 350, "labourM": 6.3, "revM": 140, "dailyRevM": 0.56, "prob": 0.12, "duration": 25, "revLostEvent": 9.8, "ealM": 1.2, "stop30M": 16.8, "slow90M": 25.2, "var": 11.2, "hazards": {"Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Medium-High", "Sea Level Rise": "High", "Overall Physical Risk": "High"}}];
+
+// ===== DANONE FACTORY DATA =====
+const D=[
+{"region":"Europe","country":"France","city":"Evian-les-Bains","type":"Water (evian)","lat":46.4,"lon":6.59,"erv":180,"emp":400,"labourM":24.8,"revM":120,"dailyRevM":0.48,"prob":0.015,"duration":4,"revLostEvent":0.4,"ealM":0,"stop30M":14.4,"slow90M":21.6,"var":3.6,"hazards":{"Riverine Flood":"Medium","Coastal Flood":"Low","Drought/Water Stress":"Low-Medium","Extreme Heat":"Medium","Wildfire":"Low","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"Low-Medium"}},
+{"region":"Europe","country":"France","city":"Volvic","type":"Water (Volvic)","lat":45.87,"lon":2.95,"erv":140,"emp":300,"labourM":18.6,"revM":90,"dailyRevM":0.36,"prob":0.06,"duration":14,"revLostEvent":2.5,"ealM":0.2,"stop30M":10.8,"slow90M":16.2,"var":11.2,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Low","Drought/Water Stress":"Medium","Extreme Heat":"High","Wildfire":"Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"France","city":"Saint-Galmier","type":"Water (Badoit)","lat":45.59,"lon":4.31,"erv":100,"emp":200,"labourM":12.4,"revM":55,"dailyRevM":0.22,"prob":0.06,"duration":14,"revLostEvent":1.5,"ealM":0.1,"stop30M":6.6,"slow90M":9.9,"var":8.0,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Low","Drought/Water Stress":"Medium-High","Extreme Heat":"High","Wildfire":"Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"Medium-High"}},
+{"region":"Europe","country":"France","city":"Ferrieres-en-Bray","type":"Fresh dairy (yogurt)","lat":49.64,"lon":1.71,"erv":110,"emp":450,"labourM":27.9,"revM":85,"dailyRevM":0.34,"prob":0.06,"duration":14,"revLostEvent":2.4,"ealM":0.2,"stop30M":10.2,"slow90M":15.3,"var":8.8,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"Medium-High","Extreme Heat":"High","Wildfire":"Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low-Medium","Overall Physical Risk":"Medium-High"}},
+{"region":"Europe","country":"France","city":"Bailleul","type":"Baby food (Bledina)","lat":50.74,"lon":2.73,"erv":95,"emp":380,"labourM":23.6,"revM":75,"dailyRevM":0.3,"prob":0.06,"duration":14,"revLostEvent":2.1,"ealM":0.1,"stop30M":9.0,"slow90M":13.5,"var":7.6,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"Medium","Extreme Heat":"Medium-High","Wildfire":"Low-Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low-Medium","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"France","city":"Steenvoorde","type":"Baby food (Bledina)","lat":50.82,"lon":2.58,"erv":85,"emp":320,"labourM":19.8,"revM":65,"dailyRevM":0.26,"prob":0.06,"duration":14,"revLostEvent":1.8,"ealM":0.1,"stop30M":7.8,"slow90M":11.7,"var":6.8,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"Medium","Extreme Heat":"Medium-High","Wildfire":"Low-Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low-Medium","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"France","city":"Villecomtal-sur-Arros","type":"Dairy (yogurt)","lat":43.38,"lon":0.14,"erv":80,"emp":280,"labourM":17.4,"revM":60,"dailyRevM":0.24,"prob":0.12,"duration":25,"revLostEvent":4.2,"ealM":0.6,"stop30M":7.2,"slow90M":10.8,"var":12.0,"hazards":{"Riverine Flood":"High","Coastal Flood":"Medium","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"Medium-High","Tropical Cyclone":"Low","Sea Level Rise":"Low-Medium","Overall Physical Risk":"High"}},
+{"region":"Europe","country":"France","city":"Le Molay-Littry","type":"Dairy","lat":49.24,"lon":-0.9,"erv":90,"emp":350,"labourM":21.7,"revM":70,"dailyRevM":0.28,"prob":0.06,"duration":14,"revLostEvent":2.0,"ealM":0.1,"stop30M":8.4,"slow90M":12.6,"var":7.2,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"Medium","Extreme Heat":"Medium-High","Wildfire":"Low-Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low-Medium","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"France","city":"Paris","type":"Danone HQ France","lat":48.86,"lon":2.35,"erv":200,"emp":1200,"labourM":74.4,"revM":0,"dailyRevM":0,"prob":0.06,"duration":14,"revLostEvent":0,"ealM":0.1,"stop30M":0,"slow90M":0,"var":16.0,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"Medium-High","Extreme Heat":"High","Wildfire":"Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low-Medium","Overall Physical Risk":"Medium-High"}},
+{"region":"Europe","country":"Spain","city":"Parets del Valles","type":"Fresh dairy (Danone yogurt)","lat":41.57,"lon":2.23,"erv":90,"emp":400,"labourM":18,"revM":70,"dailyRevM":0.28,"prob":0.12,"duration":25,"revLostEvent":4.9,"ealM":0.7,"stop30M":8.4,"slow90M":12.6,"var":13.5,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"High","Tropical Cyclone":"Low","Sea Level Rise":"Medium","Overall Physical Risk":"High"}},
+{"region":"Europe","country":"Spain","city":"Aldaya","type":"Fresh dairy","lat":39.46,"lon":-0.46,"erv":75,"emp":300,"labourM":13.5,"revM":55,"dailyRevM":0.22,"prob":0.12,"duration":25,"revLostEvent":3.9,"ealM":0.5,"stop30M":6.6,"slow90M":9.9,"var":11.2,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"High","Tropical Cyclone":"Low","Sea Level Rise":"Medium","Overall Physical Risk":"High"}},
+{"region":"Europe","country":"Germany","city":"Fulda","type":"Dairy (yogurt)","lat":50.55,"lon":9.68,"erv":100,"emp":420,"labourM":28.6,"revM":80,"dailyRevM":0.32,"prob":0.03,"duration":7,"revLostEvent":0.8,"ealM":0,"stop30M":9.6,"slow90M":14.4,"var":4.0,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Low-Medium","Drought/Water Stress":"Medium","Extreme Heat":"Medium-High","Wildfire":"Low-Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low-Medium","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"Germany","city":"Ochsenfurt","type":"Baby food (Milupa)","lat":49.66,"lon":10.07,"erv":90,"emp":350,"labourM":23.8,"revM":70,"dailyRevM":0.28,"prob":0.03,"duration":7,"revLostEvent":0.7,"ealM":0,"stop30M":8.4,"slow90M":12.6,"var":3.6,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Low-Medium","Drought/Water Stress":"Medium","Extreme Heat":"Medium-High","Wildfire":"Low-Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low-Medium","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"Germany","city":"Rosenheim","type":"Medical nutrition (Nutricia)","lat":47.86,"lon":12.13,"erv":110,"emp":380,"labourM":25.8,"revM":90,"dailyRevM":0.36,"prob":0.03,"duration":7,"revLostEvent":0.9,"ealM":0,"stop30M":10.8,"slow90M":16.2,"var":4.4,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Low-Medium","Drought/Water Stress":"Medium","Extreme Heat":"Medium-High","Wildfire":"Low-Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low-Medium","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"Germany","city":"Haar","type":"Danone Germany HQ","lat":48.11,"lon":11.72,"erv":70,"emp":500,"labourM":34,"revM":0,"dailyRevM":0,"prob":0.03,"duration":7,"revLostEvent":0,"ealM":0,"stop30M":0,"slow90M":0,"var":2.8,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Low-Medium","Drought/Water Stress":"Medium","Extreme Heat":"Medium-High","Wildfire":"Low-Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low-Medium","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"UK","city":"Wiltshire","type":"Fresh dairy (yogurt, Dannon)","lat":51.35,"lon":-2.0,"erv":95,"emp":400,"labourM":23.2,"revM":75,"dailyRevM":0.3,"prob":0.03,"duration":7,"revLostEvent":0.7,"ealM":0,"stop30M":9.0,"slow90M":13.5,"var":3.8,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"Medium","Extreme Heat":"Medium","Wildfire":"Low","Tropical Cyclone":"Low","Sea Level Rise":"Medium","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"UK","city":"Trowbridge","type":"Medical nutrition (Nutricia Fortimel)","lat":51.32,"lon":-2.21,"erv":85,"emp":350,"labourM":20.3,"revM":70,"dailyRevM":0.28,"prob":0.03,"duration":7,"revLostEvent":0.7,"ealM":0,"stop30M":8.4,"slow90M":12.6,"var":3.4,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"Medium","Extreme Heat":"Medium","Wildfire":"Low","Tropical Cyclone":"Low","Sea Level Rise":"Medium","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"Netherlands","city":"Amsterdam","type":"Danone Global HQ","lat":52.37,"lon":4.9,"erv":250,"emp":1500,"labourM":97.5,"revM":0,"dailyRevM":0,"prob":0.12,"duration":25,"revLostEvent":0,"ealM":0.2,"stop30M":0,"slow90M":0,"var":37.5,"hazards":{"Riverine Flood":"High","Coastal Flood":"High","Drought/Water Stress":"Medium","Extreme Heat":"Medium","Wildfire":"Low","Tropical Cyclone":"Low","Sea Level Rise":"High","Overall Physical Risk":"High"}},
+{"region":"Europe","country":"Netherlands","city":"Zoetermeer","type":"Medical nutrition (Nutricia)","lat":52.06,"lon":4.49,"erv":120,"emp":450,"labourM":29.2,"revM":95,"dailyRevM":0.38,"prob":0.12,"duration":25,"revLostEvent":6.7,"ealM":0.9,"stop30M":11.4,"slow90M":17.1,"var":18.0,"hazards":{"Riverine Flood":"High","Coastal Flood":"High","Drought/Water Stress":"Medium","Extreme Heat":"Medium","Wildfire":"Low","Tropical Cyclone":"Low","Sea Level Rise":"High","Overall Physical Risk":"High"}},
+{"region":"Europe","country":"Netherlands","city":"Cuijk","type":"Baby food (Nutricia)","lat":51.73,"lon":5.88,"erv":100,"emp":380,"labourM":24.7,"revM":80,"dailyRevM":0.32,"prob":0.12,"duration":25,"revLostEvent":5.6,"ealM":0.7,"stop30M":9.6,"slow90M":14.4,"var":15.0,"hazards":{"Riverine Flood":"High","Coastal Flood":"High","Drought/Water Stress":"Medium","Extreme Heat":"Medium","Wildfire":"Low","Tropical Cyclone":"Low","Sea Level Rise":"High","Overall Physical Risk":"High"}},
+{"region":"Europe","country":"Belgium","city":"Rotselaar","type":"Plant-based (Alpro)","lat":50.95,"lon":4.72,"erv":110,"emp":450,"labourM":27,"revM":90,"dailyRevM":0.36,"prob":0.03,"duration":7,"revLostEvent":0.9,"ealM":0,"stop30M":10.8,"slow90M":16.2,"var":4.4,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"Medium","Extreme Heat":"Medium","Wildfire":"Low","Tropical Cyclone":"Low","Sea Level Rise":"Medium","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"Poland","city":"Bierun","type":"Fresh dairy (yogurt)","lat":50.08,"lon":19.09,"erv":70,"emp":380,"labourM":9.9,"revM":55,"dailyRevM":0.22,"prob":0.03,"duration":7,"revLostEvent":0.5,"ealM":0,"stop30M":6.6,"slow90M":9.9,"var":2.8,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Low","Drought/Water Stress":"Medium","Extreme Heat":"Medium","Wildfire":"Low-Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"Poland","city":"Opole","type":"Baby food (Nutricia)","lat":50.67,"lon":17.93,"erv":65,"emp":320,"labourM":8.3,"revM":50,"dailyRevM":0.2,"prob":0.03,"duration":7,"revLostEvent":0.5,"ealM":0,"stop30M":6.0,"slow90M":9.0,"var":2.6,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Low","Drought/Water Stress":"Medium","Extreme Heat":"Medium","Wildfire":"Low-Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"Russia","city":"Chekhov","type":"Fresh dairy (yogurt)","lat":55.15,"lon":37.46,"erv":75,"emp":450,"labourM":9,"revM":60,"dailyRevM":0.24,"prob":0.03,"duration":7,"revLostEvent":0.6,"ealM":0,"stop30M":7.2,"slow90M":10.8,"var":3.0,"hazards":{"Riverine Flood":"Medium","Coastal Flood":"Low","Drought/Water Stress":"Low-Medium","Extreme Heat":"Low-Medium","Wildfire":"High","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"Russia","city":"Kemerovo","type":"Fresh dairy","lat":55.35,"lon":86.09,"erv":55,"emp":350,"labourM":7,"revM":45,"dailyRevM":0.18,"prob":0.03,"duration":7,"revLostEvent":0.4,"ealM":0,"stop30M":5.4,"slow90M":8.1,"var":2.2,"hazards":{"Riverine Flood":"Medium","Coastal Flood":"Low","Drought/Water Stress":"Low-Medium","Extreme Heat":"Low-Medium","Wildfire":"High","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"Medium"}},
+{"region":"Europe","country":"Turkiye","city":"Luleburgaz","type":"Fresh dairy (yogurt)","lat":41.41,"lon":27.36,"erv":60,"emp":350,"labourM":6.3,"revM":50,"dailyRevM":0.2,"prob":0.12,"duration":25,"revLostEvent":3.5,"ealM":0.5,"stop30M":6.0,"slow90M":9.0,"var":9.0,"hazards":{"Riverine Flood":"High","Coastal Flood":"Medium","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"High","Tropical Cyclone":"Low","Sea Level Rise":"Medium","Overall Physical Risk":"High"}},
+{"region":"Europe","country":"Turkiye","city":"Ankara","type":"Fresh dairy","lat":39.93,"lon":32.87,"erv":55,"emp":300,"labourM":5.4,"revM":45,"dailyRevM":0.18,"prob":0.12,"duration":25,"revLostEvent":3.1,"ealM":0.4,"stop30M":5.4,"slow90M":8.1,"var":8.2,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Low","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"Medium-High","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"High"}},
+{"region":"ASEAN","country":"Indonesia","city":"Cikarang","type":"Baby nutrition (SGM)","lat":-6.31,"lon":107.17,"erv":90,"emp":420,"labourM":2.9,"revM":75,"dailyRevM":0.3,"prob":0.12,"duration":25,"revLostEvent":5.2,"ealM":0.6,"stop30M":9.0,"slow90M":13.5,"var":13.5,"hazards":{"Riverine Flood":"High","Coastal Flood":"High","Drought/Water Stress":"Medium","Extreme Heat":"High","Wildfire":"High","Tropical Cyclone":"Medium","Sea Level Rise":"High","Overall Physical Risk":"High"}},
+{"region":"ASEAN","country":"Indonesia","city":"Sentul, Bogor","type":"Water (AQUA)","lat":-6.58,"lon":106.87,"erv":70,"emp":300,"labourM":2.1,"revM":55,"dailyRevM":0.22,"prob":0.12,"duration":25,"revLostEvent":3.9,"ealM":0.5,"stop30M":6.6,"slow90M":9.9,"var":10.5,"hazards":{"Riverine Flood":"High","Coastal Flood":"High","Drought/Water Stress":"Medium","Extreme Heat":"High","Wildfire":"High","Tropical Cyclone":"Medium","Sea Level Rise":"High","Overall Physical Risk":"High"}},
+{"region":"ASEAN","country":"Indonesia","city":"Klaten","type":"Water (AQUA)","lat":-7.71,"lon":110.6,"erv":60,"emp":250,"labourM":1.8,"revM":45,"dailyRevM":0.18,"prob":0.12,"duration":25,"revLostEvent":3.1,"ealM":0.4,"stop30M":5.4,"slow90M":8.1,"var":9.0,"hazards":{"Riverine Flood":"High","Coastal Flood":"High","Drought/Water Stress":"Medium","Extreme Heat":"High","Wildfire":"High","Tropical Cyclone":"Medium","Sea Level Rise":"High","Overall Physical Risk":"High"}},
+{"region":"ASEAN","country":"Indonesia","city":"Sukabumi","type":"Water (AQUA)","lat":-6.92,"lon":106.93,"erv":55,"emp":220,"labourM":1.5,"revM":40,"dailyRevM":0.16,"prob":0.12,"duration":25,"revLostEvent":2.8,"ealM":0.3,"stop30M":4.8,"slow90M":7.2,"var":8.2,"hazards":{"Riverine Flood":"High","Coastal Flood":"High","Drought/Water Stress":"Medium","Extreme Heat":"High","Wildfire":"High","Tropical Cyclone":"Medium","Sea Level Rise":"High","Overall Physical Risk":"High"}},
+{"region":"China","country":"China","city":"Shanghai","type":"Specialized nutrition (Danone)","lat":31.22,"lon":121.46,"erv":85,"emp":380,"labourM":6.8,"revM":70,"dailyRevM":0.28,"prob":0.12,"duration":25,"revLostEvent":4.9,"ealM":0.6,"stop30M":8.4,"slow90M":12.6,"var":12.8,"hazards":{"Riverine Flood":"High","Coastal Flood":"High","Drought/Water Stress":"Medium-High","Extreme Heat":"High","Wildfire":"Low","Tropical Cyclone":"High","Sea Level Rise":"High","Overall Physical Risk":"High"}},
+{"region":"China","country":"China","city":"Kunshan","type":"Fresh dairy","lat":31.39,"lon":120.98,"erv":70,"emp":320,"labourM":5.8,"revM":55,"dailyRevM":0.22,"prob":0.12,"duration":25,"revLostEvent":3.9,"ealM":0.5,"stop30M":6.6,"slow90M":9.9,"var":10.5,"hazards":{"Riverine Flood":"High","Coastal Flood":"High","Drought/Water Stress":"Medium-High","Extreme Heat":"High","Wildfire":"Low","Tropical Cyclone":"High","Sea Level Rise":"High","Overall Physical Risk":"High"}},
+{"region":"China","country":"China","city":"Wuhan","type":"Fresh dairy","lat":30.59,"lon":114.31,"erv":65,"emp":300,"labourM":5.4,"revM":50,"dailyRevM":0.2,"prob":0.12,"duration":25,"revLostEvent":3.5,"ealM":0.4,"stop30M":6.0,"slow90M":9.0,"var":9.8,"hazards":{"Riverine Flood":"High","Coastal Flood":"Medium-High","Drought/Water Stress":"Medium-High","Extreme Heat":"High","Wildfire":"Low-Medium","Tropical Cyclone":"Medium","Sea Level Rise":"Medium-High","Overall Physical Risk":"High"}},
+{"region":"India","country":"India","city":"Sonepat","type":"Fresh dairy (yogurt)","lat":28.99,"lon":77.02,"erv":60,"emp":350,"labourM":3,"revM":50,"dailyRevM":0.2,"prob":0.12,"duration":25,"revLostEvent":3.5,"ealM":0.4,"stop30M":6.0,"slow90M":9.0,"var":9.0,"hazards":{"Riverine Flood":"High","Coastal Flood":"Low","Drought/Water Stress":"Extreme","Extreme Heat":"Extreme","Wildfire":"Low-Medium","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"High"}},
+{"region":"India","country":"India","city":"Lalru","type":"Baby food (Aptamil)","lat":30.55,"lon":76.82,"erv":55,"emp":300,"labourM":2.5,"revM":45,"dailyRevM":0.18,"prob":0.12,"duration":25,"revLostEvent":3.1,"ealM":0.4,"stop30M":5.4,"slow90M":8.1,"var":8.2,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Low","Drought/Water Stress":"Extreme","Extreme Heat":"Extreme","Wildfire":"Low","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"High"}},
+{"region":"Latin America","country":"Brazil","city":"Pocos de Caldas","type":"Fresh dairy (yogurt, Danone)","lat":-21.79,"lon":-46.56,"erv":80,"emp":400,"labourM":6.4,"revM":65,"dailyRevM":0.26,"prob":0.12,"duration":25,"revLostEvent":4.5,"ealM":0.6,"stop30M":7.8,"slow90M":11.7,"var":12.0,"hazards":{"Riverine Flood":"High","Coastal Flood":"Medium","Drought/Water Stress":"Medium-High","Extreme Heat":"High","Wildfire":"High","Tropical Cyclone":"Low","Sea Level Rise":"Medium","Overall Physical Risk":"High"}},
+{"region":"Latin America","country":"Brazil","city":"Maracanau","type":"Water (Bonafont)","lat":-3.87,"lon":-38.63,"erv":50,"emp":200,"labourM":3.2,"revM":35,"dailyRevM":0.14,"prob":0.12,"duration":25,"revLostEvent":2.4,"ealM":0.3,"stop30M":4.2,"slow90M":6.3,"var":7.5,"hazards":{"Riverine Flood":"High","Coastal Flood":"Medium-High","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"Medium-High","Tropical Cyclone":"Low","Sea Level Rise":"Medium","Overall Physical Risk":"High"}},
+{"region":"Latin America","country":"Mexico","city":"Ixtacomitan","type":"Fresh dairy (yogurt)","lat":17.98,"lon":-93.15,"erv":65,"emp":350,"labourM":4.5,"revM":50,"dailyRevM":0.2,"prob":0.12,"duration":25,"revLostEvent":3.5,"ealM":0.4,"stop30M":6.0,"slow90M":9.0,"var":9.8,"hazards":{"Riverine Flood":"High","Coastal Flood":"Medium-High","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"Medium-High","Tropical Cyclone":"High","Sea Level Rise":"Medium-High","Overall Physical Risk":"High"}},
+{"region":"Latin America","country":"Mexico","city":"Toluca","type":"Water (Bonafont)","lat":19.29,"lon":-99.66,"erv":55,"emp":250,"labourM":3.2,"revM":40,"dailyRevM":0.16,"prob":0.12,"duration":25,"revLostEvent":2.8,"ealM":0.3,"stop30M":4.8,"slow90M":7.2,"var":8.2,"hazards":{"Riverine Flood":"High","Coastal Flood":"Medium-High","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"Medium-High","Tropical Cyclone":"High","Sea Level Rise":"Medium-High","Overall Physical Risk":"High"}},
+{"region":"Latin America","country":"Argentina","city":"Longchamps","type":"Fresh dairy (yogurt)","lat":-34.86,"lon":-58.39,"erv":60,"emp":300,"labourM":3.6,"revM":45,"dailyRevM":0.18,"prob":0.06,"duration":14,"revLostEvent":1.3,"ealM":0.1,"stop30M":5.4,"slow90M":8.1,"var":4.8,"hazards":{"Riverine Flood":"High","Coastal Flood":"Medium","Drought/Water Stress":"Medium-High","Extreme Heat":"Medium-High","Wildfire":"Medium","Tropical Cyclone":"Low","Sea Level Rise":"Medium","Overall Physical Risk":"Medium-High"}},
+{"region":"Africa","country":"Morocco","city":"Sale","type":"Dairy (Centrale Danone)","lat":34.05,"lon":-6.8,"erv":65,"emp":400,"labourM":4.8,"revM":55,"dailyRevM":0.22,"prob":0.12,"duration":25,"revLostEvent":3.9,"ealM":0.5,"stop30M":6.6,"slow90M":9.9,"var":9.8,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"Medium-High","Tropical Cyclone":"Low","Sea Level Rise":"Medium","Overall Physical Risk":"High"}},
+{"region":"Africa","country":"Morocco","city":"Meknes","type":"Dairy (Centrale Danone)","lat":33.89,"lon":-5.55,"erv":55,"emp":350,"labourM":4.2,"revM":45,"dailyRevM":0.18,"prob":0.12,"duration":25,"revLostEvent":3.1,"ealM":0.4,"stop30M":5.4,"slow90M":8.1,"var":8.2,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Low","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"Medium-High","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"High"}},
+{"region":"Africa","country":"Algeria","city":"Blida","type":"Fresh dairy","lat":36.47,"lon":2.83,"erv":50,"emp":300,"labourM":3,"revM":40,"dailyRevM":0.16,"prob":0.12,"duration":25,"revLostEvent":2.8,"ealM":0.3,"stop30M":4.8,"slow90M":7.2,"var":7.5,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"High","Extreme Heat":"Extreme","Wildfire":"Medium-High","Tropical Cyclone":"Low","Sea Level Rise":"Medium","Overall Physical Risk":"High"}},
+{"region":"Middle East","country":"Saudi Arabia","city":"Riyadh","type":"Dairy (Al Safi Danone)","lat":24.71,"lon":46.67,"erv":80,"emp":400,"labourM":11.2,"revM":65,"dailyRevM":0.26,"prob":0.12,"duration":25,"revLostEvent":4.5,"ealM":0.6,"stop30M":7.8,"slow90M":11.7,"var":12.0,"hazards":{"Riverine Flood":"Low-Medium","Coastal Flood":"Low","Drought/Water Stress":"Extreme","Extreme Heat":"Extreme","Wildfire":"Low","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"High"}},
+{"region":"Africa","country":"Egypt","city":"6th of October City","type":"Fresh dairy (Danone Egypt)","lat":29.94,"lon":30.93,"erv":50,"emp":350,"labourM":2.1,"revM":40,"dailyRevM":0.16,"prob":0.12,"duration":25,"revLostEvent":2.8,"ealM":0.3,"stop30M":4.8,"slow90M":7.2,"var":7.5,"hazards":{"Riverine Flood":"Medium","Coastal Flood":"Medium-High","Drought/Water Stress":"Extreme","Extreme Heat":"Extreme","Wildfire":"Low","Tropical Cyclone":"Low","Sea Level Rise":"High","Overall Physical Risk":"High"}},
+{"region":"ASEAN","country":"Japan","city":"Kawasaki","type":"Medical nutrition (Nutricia Japan)","lat":35.53,"lon":139.7,"erv":100,"emp":300,"labourM":27,"revM":80,"dailyRevM":0.32,"prob":0.06,"duration":14,"revLostEvent":2.2,"ealM":0.2,"stop30M":9.6,"slow90M":14.4,"var":8.0,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium-High","Drought/Water Stress":"Medium","Extreme Heat":"High","Wildfire":"Low","Tropical Cyclone":"Medium-High","Sea Level Rise":"Medium-High","Overall Physical Risk":"Medium-High"}},
+{"region":"Oceania","country":"Australia","city":"Dandenong","type":"Fresh dairy (yogurt)","lat":-37.99,"lon":145.21,"erv":90,"emp":350,"labourM":26.2,"revM":65,"dailyRevM":0.26,"prob":0.12,"duration":25,"revLostEvent":4.5,"ealM":0.6,"stop30M":7.8,"slow90M":11.7,"var":13.5,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"High","Extreme Heat":"Extreme","Wildfire":"Extreme","Tropical Cyclone":"Medium","Sea Level Rise":"Medium","Overall Physical Risk":"High"}},
+{"region":"Oceania","country":"New Zealand","city":"Auckland","type":"Medical nutrition (Nutricia NZ)","lat":-36.85,"lon":174.76,"erv":80,"emp":250,"labourM":15.5,"revM":60,"dailyRevM":0.24,"prob":0.03,"duration":7,"revLostEvent":0.6,"ealM":0,"stop30M":7.2,"slow90M":10.8,"var":3.2,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"Medium","Extreme Heat":"Low-Medium","Wildfire":"Low-Medium","Tropical Cyclone":"Low-Medium","Sea Level Rise":"Medium","Overall Physical Risk":"Medium"}},
+{"region":"North America","country":"USA","city":"White Plains, New York","type":"Danone North America HQ","lat":41.03,"lon":-73.76,"erv":120,"emp":800,"labourM":62.4,"revM":0,"dailyRevM":0,"prob":0.03,"duration":7,"revLostEvent":0,"ealM":0,"stop30M":0,"slow90M":0,"var":4.8,"hazards":{"Riverine Flood":"Medium","Coastal Flood":"Low-Medium","Drought/Water Stress":"Low-Medium","Extreme Heat":"Medium","Wildfire":"Low","Tropical Cyclone":"Medium","Sea Level Rise":"Low-Medium","Overall Physical Risk":"Medium"}},
+{"region":"North America","country":"USA","city":"Minster, Ohio","type":"Dairy (Dannon yogurt)","lat":40.39,"lon":-84.38,"erv":100,"emp":450,"labourM":35.1,"revM":80,"dailyRevM":0.32,"prob":0.015,"duration":4,"revLostEvent":0.3,"ealM":0,"stop30M":9.6,"slow90M":14.4,"var":2.0,"hazards":{"Riverine Flood":"Medium","Coastal Flood":"Low","Drought/Water Stress":"Low-Medium","Extreme Heat":"Medium","Wildfire":"Low","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"Low-Medium"}},
+{"region":"North America","country":"USA","city":"West Jordan, Utah","type":"Fresh dairy (Dannon)","lat":40.61,"lon":-111.94,"erv":85,"emp":380,"labourM":29.6,"revM":65,"dailyRevM":0.26,"prob":0.06,"duration":14,"revLostEvent":1.8,"ealM":0.1,"stop30M":7.8,"slow90M":11.7,"var":6.8,"hazards":{"Riverine Flood":"Low","Coastal Flood":"Low","Drought/Water Stress":"High","Extreme Heat":"Medium-High","Wildfire":"High","Tropical Cyclone":"Low","Sea Level Rise":"Low","Overall Physical Risk":"Medium-High"}},
+{"region":"North America","country":"USA","city":"Fort Worth, Texas","type":"Fresh dairy (Dannon)","lat":32.75,"lon":-97.33,"erv":90,"emp":400,"labourM":31.2,"revM":70,"dailyRevM":0.28,"prob":0.06,"duration":14,"revLostEvent":2.0,"ealM":0.1,"stop30M":8.4,"slow90M":12.6,"var":7.2,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Low","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"Medium","Tropical Cyclone":"Medium","Sea Level Rise":"Low","Overall Physical Risk":"Medium-High"}},
+{"region":"North America","country":"USA","city":"Portland, Oregon","type":"Fresh dairy (Dannon)","lat":45.52,"lon":-122.68,"erv":80,"emp":350,"labourM":27.3,"revM":60,"dailyRevM":0.24,"prob":0.03,"duration":7,"revLostEvent":0.6,"ealM":0,"stop30M":7.2,"slow90M":10.8,"var":3.2,"hazards":{"Riverine Flood":"Medium","Coastal Flood":"Low","Drought/Water Stress":"Medium","Extreme Heat":"Medium","Wildfire":"High","Tropical Cyclone":"Low","Sea Level Rise":"Low-Medium","Overall Physical Risk":"Medium"}},
+{"region":"Africa","country":"South Africa","city":"Boksburg","type":"Dairy, baby nutrition","lat":-26.22,"lon":28.26,"erv":60,"emp":350,"labourM":5.6,"revM":45,"dailyRevM":0.18,"prob":0.12,"duration":25,"revLostEvent":3.1,"ealM":0.4,"stop30M":5.4,"slow90M":8.1,"var":9.0,"hazards":{"Riverine Flood":"Medium-High","Coastal Flood":"Medium","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"High","Tropical Cyclone":"Low-Medium","Sea Level Rise":"Medium","Overall Physical Risk":"High"}},
+{"region":"ASEAN","country":"Singapore","city":"Tuas","type":"Specialized nutrition","lat":1.32,"lon":103.64,"erv":95,"emp":350,"labourM":25.2,"revM":80,"dailyRevM":0.32,"prob":0.06,"duration":14,"revLostEvent":2.2,"ealM":0.2,"stop30M":9.6,"slow90M":14.4,"var":7.6,"hazards":{"Riverine Flood":"Medium","Coastal Flood":"Medium-High","Drought/Water Stress":"Medium","Extreme Heat":"High","Wildfire":"Low","Tropical Cyclone":"Low","Sea Level Rise":"High","Overall Physical Risk":"Medium-High"}},
+{"region":"Africa","country":"Senegal","city":"Dakar","type":"Dairy (Fan Milk)","lat":14.72,"lon":-17.47,"erv":35,"emp":250,"labourM":1.5,"revM":30,"dailyRevM":0.12,"prob":0.12,"duration":25,"revLostEvent":2.1,"ealM":0.3,"stop30M":3.6,"slow90M":5.4,"var":5.2,"hazards":{"Riverine Flood":"High","Coastal Flood":"High","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"Medium-High","Tropical Cyclone":"Low","Sea Level Rise":"High","Overall Physical Risk":"High"}},
+{"region":"Africa","country":"Kenya","city":"Nairobi","type":"Fresh dairy","lat":-1.29,"lon":36.82,"erv":40,"emp":280,"labourM":2,"revM":30,"dailyRevM":0.12,"prob":0.12,"duration":25,"revLostEvent":2.1,"ealM":0.3,"stop30M":3.6,"slow90M":5.4,"var":6.0,"hazards":{"Riverine Flood":"High","Coastal Flood":"Medium","Drought/Water Stress":"High","Extreme Heat":"High","Wildfire":"Medium","Tropical Cyclone":"Low-Medium","Sea Level Rise":"Medium","Overall Physical Risk":"High"}}
+];
+
+// ===== SUPPLIER DATA =====
+const S = [
+  // Cocoa suppliers
+  { name: "Barry Callebaut", category: "Cocoa", country: "Côte d'Ivoire", city: "Abidjan", region: "Africa", lat: 5.36, lon: -4.01, supplies: "both", hazards: { "Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High" } },
+  { name: "Cargill Cocoa", category: "Cocoa", country: "Ghana", city: "Accra", region: "Africa", lat: 5.60, lon: -0.19, supplies: "both", hazards: { "Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High" } },
+  { name: "Olam Cocoa", category: "Cocoa", country: "Indonesia", city: "Makassar", region: "ASEAN", lat: -5.14, lon: 119.42, supplies: "nestle", hazards: { "Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Medium", "Sea Level Rise": "High", "Overall Physical Risk": "High" } },
+  { name: "SucDen Cocoa", category: "Cocoa", country: "Brazil", city: "Ilhéus", region: "Latin America", lat: -14.79, lon: -39.04, supplies: "nestle", hazards: { "Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High" } },
+  // Coffee suppliers
+  { name: "Volcafe", category: "Coffee", country: "Brazil", city: "São Paulo", region: "Latin America", lat: -23.55, lon: -46.63, supplies: "nestle", hazards: { "Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High" } },
+  { name: "ECOM Coffee", category: "Coffee", country: "Vietnam", city: "Ho Chi Minh City", region: "ASEAN", lat: 10.82, lon: 106.63, supplies: "nestle", hazards: { "Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "High", "Sea Level Rise": "Extreme", "Overall Physical Risk": "High" } },
+  { name: "Louis Dreyfus Coffee", category: "Coffee", country: "Colombia", city: "Bogotá", region: "Latin America", lat: 4.71, lon: -74.07, supplies: "nestle", hazards: { "Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Medium", "Tropical Cyclone": "Medium", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "Medium-High" } },
+  { name: "Neumann Kaffee", category: "Coffee", country: "Uganda", city: "Kampala", region: "Africa", lat: 0.35, lon: 32.58, supplies: "nestle", hazards: { "Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High" } },
+  { name: "Olam Coffee", category: "Coffee", country: "Ethiopia", city: "Addis Ababa", region: "Africa", lat: 9.02, lon: 38.75, supplies: "nestle", hazards: { "Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High" } },
+  // Dairy/Milk suppliers
+  { name: "FrieslandCampina", category: "Dairy", country: "Netherlands", city: "Amersfoort", region: "Europe", lat: 52.16, lon: 5.39, supplies: "danone", hazards: { "Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "High", "Overall Physical Risk": "High" } },
+  { name: "Fonterra", category: "Dairy", country: "New Zealand", city: "Hamilton", region: "Oceania", lat: -37.79, lon: 175.28, supplies: "both", hazards: { "Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Low-Medium", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Medium", "Overall Physical Risk": "Medium" } },
+  { name: "Lactalis", category: "Dairy", country: "France", city: "Laval", region: "Europe", lat: 48.07, lon: -0.77, supplies: "danone", hazards: { "Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium" } },
+  { name: "Arla Foods", category: "Dairy", country: "Denmark", city: "Aarhus", region: "Europe", lat: 56.15, lon: 10.21, supplies: "danone", hazards: { "Riverine Flood": "Medium", "Coastal Flood": "Medium", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Low-Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "Low-Medium" } },
+  { name: "Saputo", category: "Dairy", country: "Canada", city: "Montreal", region: "North America", lat: 45.50, lon: -73.57, supplies: "nestle", hazards: { "Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low", "Extreme Heat": "Low-Medium", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium" } },
+  { name: "Dairy Farmers of America", category: "Dairy", country: "USA", city: "Kansas City", region: "North America", lat: 39.10, lon: -94.58, supplies: "nestle", hazards: { "Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium" } },
+  { name: "Amul", category: "Dairy", country: "India", city: "Anand", region: "India", lat: 22.56, lon: 72.95, supplies: "both", hazards: { "Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "High", "Extreme Heat": "Extreme", "Wildfire": "Low-Medium", "Tropical Cyclone": "High", "Sea Level Rise": "Medium", "Overall Physical Risk": "High" } },
+  // Palm Oil suppliers
+  { name: "Wilmar International", category: "Palm Oil", country: "Singapore", city: "Singapore", region: "ASEAN", lat: 1.29, lon: 103.85, supplies: "both", hazards: { "Riverine Flood": "Medium", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "High", "Overall Physical Risk": "Medium-High" } },
+  { name: "Sime Darby", category: "Palm Oil", country: "Malaysia", city: "Kuala Lumpur", region: "ASEAN", lat: 3.14, lon: 101.69, supplies: "both", hazards: { "Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High" } },
+  { name: "Golden Agri-Resources", category: "Palm Oil", country: "Indonesia", city: "Jakarta", region: "ASEAN", lat: -6.21, lon: 106.85, supplies: "nestle", hazards: { "Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Medium", "Sea Level Rise": "High", "Overall Physical Risk": "High" } },
+  { name: "Musim Mas", category: "Palm Oil", country: "Indonesia", city: "Medan", region: "ASEAN", lat: 3.59, lon: 98.67, supplies: "both", hazards: { "Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Medium", "Sea Level Rise": "High", "Overall Physical Risk": "High" } },
+  // Sugar suppliers
+  { name: "Südzucker", category: "Sugar", country: "Germany", city: "Mannheim", region: "Europe", lat: 49.49, lon: 8.47, supplies: "both", hazards: { "Riverine Flood": "Medium-High", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium" } },
+  { name: "Raízen", category: "Sugar", country: "Brazil", city: "Piracicaba", region: "Latin America", lat: -22.72, lon: -47.65, supplies: "nestle", hazards: { "Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High" } },
+  { name: "Mitr Phol", category: "Sugar", country: "Thailand", city: "Bangkok", region: "ASEAN", lat: 13.76, lon: 100.50, supplies: "both", hazards: { "Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Medium", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "High" } },
+  { name: "Tereos", category: "Sugar", country: "France", city: "Lille", region: "Europe", lat: 50.63, lon: 3.06, supplies: "danone", hazards: { "Riverine Flood": "Medium-High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium" } },
+  // Wheat/Grains suppliers
+  { name: "Cargill Grains", category: "Wheat/Grains", country: "USA", city: "Minneapolis", region: "North America", lat: 44.98, lon: -93.27, supplies: "both", hazards: { "Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium" } },
+  { name: "ADM", category: "Wheat/Grains", country: "USA", city: "Chicago", region: "North America", lat: 41.88, lon: -87.63, supplies: "both", hazards: { "Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium" } },
+  { name: "Bunge", category: "Wheat/Grains", country: "USA", city: "St. Louis", region: "North America", lat: 38.63, lon: -90.20, supplies: "nestle", hazards: { "Riverine Flood": "High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low", "Tropical Cyclone": "Low-Medium", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High" } },
+  { name: "Louis Dreyfus Grains", category: "Wheat/Grains", country: "Netherlands", city: "Rotterdam", region: "Europe", lat: 51.92, lon: 4.48, supplies: "both", hazards: { "Riverine Flood": "High", "Coastal Flood": "High", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "High", "Overall Physical Risk": "High" } },
+  // Fruit suppliers
+  { name: "Dole", category: "Fruit", country: "Costa Rica", city: "San José", region: "Latin America", lat: 9.93, lon: -84.09, supplies: "danone", hazards: { "Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Medium", "Sea Level Rise": "Medium", "Overall Physical Risk": "Medium-High" } },
+  { name: "Chiquita", category: "Fruit", country: "Colombia", city: "Medellín", region: "Latin America", lat: 6.25, lon: -75.56, supplies: "danone", hazards: { "Riverine Flood": "High", "Coastal Flood": "Medium-High", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Medium", "Tropical Cyclone": "Medium", "Sea Level Rise": "Medium-High", "Overall Physical Risk": "Medium-High" } },
+  { name: "Agrana", category: "Fruit", country: "Austria", city: "Vienna", region: "Europe", lat: 48.21, lon: 16.37, supplies: "danone", hazards: { "Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium" } },
+  { name: "Döhler", category: "Fruit", country: "Germany", city: "Darmstadt", region: "Europe", lat: 49.87, lon: 8.65, supplies: "danone", hazards: { "Riverine Flood": "Medium-High", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium" } },
+  // Soy/Plant-based suppliers
+  { name: "Bunge Soy", category: "Soy/Plant-based", country: "Brazil", city: "Rondonópolis", region: "Latin America", lat: -16.47, lon: -54.64, supplies: "both", hazards: { "Riverine Flood": "High", "Coastal Flood": "Low", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "High" } },
+  { name: "ADM Soy", category: "Soy/Plant-based", country: "USA", city: "Decatur", region: "North America", lat: 39.84, lon: -88.95, supplies: "both", hazards: { "Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium" } },
+  { name: "Alpro Sourcing (Oats)", category: "Soy/Plant-based", country: "Sweden", city: "Malmö", region: "Europe", lat: 55.60, lon: 13.00, supplies: "danone", hazards: { "Riverine Flood": "Medium", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Low", "Extreme Heat": "Low-Medium", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Low-Medium" } },
+  // Packaging suppliers
+  { name: "Tetra Pak", category: "Packaging", country: "Sweden", city: "Lund", region: "Europe", lat: 55.70, lon: 13.19, supplies: "both", hazards: { "Riverine Flood": "Medium", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Low", "Extreme Heat": "Low-Medium", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Low-Medium" } },
+  { name: "SIG Combibloc", category: "Packaging", country: "Germany", city: "Linnich", region: "Europe", lat: 50.97, lon: 6.27, supplies: "both", hazards: { "Riverine Flood": "Medium-High", "Coastal Flood": "Low-Medium", "Drought/Water Stress": "Medium", "Extreme Heat": "Medium-High", "Wildfire": "Low-Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low-Medium", "Overall Physical Risk": "Medium" } },
+  { name: "Amcor", category: "Packaging", country: "Switzerland", city: "Zürich", region: "Europe", lat: 47.38, lon: 8.54, supplies: "both", hazards: { "Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium" } },
+  { name: "Ball Corporation", category: "Packaging", country: "USA", city: "Broomfield", region: "North America", lat: 39.92, lon: -105.09, supplies: "nestle", hazards: { "Riverine Flood": "Low-Medium", "Coastal Flood": "Low", "Drought/Water Stress": "High", "Extreme Heat": "Medium", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High" } },
+  // Water/Springs
+  { name: "Evian Springs", category: "Water/Springs", country: "France", city: "Évian-les-Bains", region: "Europe", lat: 46.40, lon: 6.59, supplies: "danone", hazards: { "Riverine Flood": "Medium", "Coastal Flood": "Low", "Drought/Water Stress": "Low-Medium", "Extreme Heat": "Medium", "Wildfire": "Low", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Low-Medium" } },
+  { name: "Volvic Springs", category: "Water/Springs", country: "France", city: "Volvic", region: "Europe", lat: 45.87, lon: 2.95, supplies: "danone", hazards: { "Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Low", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium" } },
+  // Pet Food ingredients
+  { name: "Tyson Foods", category: "Pet Food Ingredients", country: "USA", city: "Springdale", region: "North America", lat: 36.19, lon: -94.13, supplies: "nestle", hazards: { "Riverine Flood": "High", "Coastal Flood": "Low", "Drought/Water Stress": "Medium", "Extreme Heat": "High", "Wildfire": "Low", "Tropical Cyclone": "Medium", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High" } },
+  { name: "JBS", category: "Pet Food Ingredients", country: "Brazil", city: "São Paulo", region: "Latin America", lat: -23.55, lon: -46.63, supplies: "nestle", hazards: { "Riverine Flood": "High", "Coastal Flood": "Medium", "Drought/Water Stress": "Medium-High", "Extreme Heat": "High", "Wildfire": "High", "Tropical Cyclone": "Low", "Sea Level Rise": "Medium", "Overall Physical Risk": "High" } },
+  { name: "Darling Ingredients", category: "Pet Food Ingredients", country: "USA", city: "Irving", region: "North America", lat: 32.81, lon: -96.95, supplies: "nestle", hazards: { "Riverine Flood": "Medium-High", "Coastal Flood": "Low", "Drought/Water Stress": "High", "Extreme Heat": "High", "Wildfire": "Medium", "Tropical Cyclone": "Medium", "Sea Level Rise": "Low", "Overall Physical Risk": "Medium-High" } }
+];
+
+// ===== RISK COLORS =====
+const RC = {
+  "Extreme": "#B71C1C",
+  "High": "#E53935",
+  "Medium-High": "#FF8F00",
+  "Medium": "#FFD54F",
+  "Low-Medium": "#81C784",
+  "Low": "#C8E6C9"
+};
+
+// ===== COMPANY TOGGLE STATE =====
+const companyState = { nestle: true, danone: true };
+
+// ===== SCORECARD =====
+function toggleScorecard() {
+  const sc = document.getElementById('scorecard');
+  const btn = document.getElementById('scorecard-btn');
+  if (sc.style.display === 'block') {
+    sc.style.display = 'none';
+    btn.style.display = 'block';
+  } else {
+    sc.style.display = 'block';
+    btn.style.display = 'none';
+    buildScorecard();
+  }
+}
+
+function getVisibleFactories() {
+  const vis = [];
+  if (companyState.nestle) vis.push(...F);
+  if (companyState.danone) vis.push(...D);
+  return vis;
+}
+
+function hxCount(factories, hazard, levels) {
+  return factories.filter(f => levels.includes(f.hazards[hazard])).length;
+}
+function hxERV(factories, hazard, levels) {
+  return factories.filter(f => levels.includes(f.hazards[hazard])).reduce((s, f) => s + f.erv, 0);
+}
+function hxRev(factories, hazard, levels) {
+  return factories.filter(f => levels.includes(f.hazards[hazard])).reduce((s, f) => s + f.revM, 0);
+}
+function sev(pct) {
+  if (pct >= 50) return ['critical', 'CRITICAL'];
+  if (pct >= 30) return ['high', 'HIGH'];
+  if (pct >= 15) return ['elevated', 'ELEVATED'];
+  return ['moderate', 'MODERATE'];
+}
+
+function buildScorecard() {
+  const VF = getVisibleFactories();
+  if (VF.length === 0) {
+    document.getElementById('scorecard').innerHTML = `<button class="sc-close" onclick="toggleScorecard()">&times;</button><h3>Climate Production Risk Scorecard</h3><div class="sc-sub">No companies selected</div>`;
+    return;
+  }
+  const HE = ['High', 'Extreme'];
+  const items = [];
+  const label = [companyState.nestle ? 'Nestle' : '', companyState.danone ? 'Danone' : ''].filter(Boolean).join(' & ');
+
+  const ws = hxCount(VF, 'Drought/Water Stress', HE);
+  const wsX = VF.filter(f => f.hazards['Drought/Water Stress'] === 'Extreme').length;
+  const wsR = hxRev(VF, 'Drought/Water Stress', HE);
+  const [wsS, wsL] = sev(ws / VF.length * 100);
+  items.push({ num: 1, title: 'Water Stress & Drought', severity: wsS, badge: wsL,
+    body: `<span class="sc-metric">${ws}</span> factories (${(ws/VF.length*100).toFixed(0)}%) face High/Extreme water stress, including <span class="sc-metric">${wsX}</span> at Extreme level. Total revenue exposed: <span class="sc-metric">$${(wsR/1000).toFixed(1)}B</span>/yr.` });
+
+  const eh = hxCount(VF, 'Extreme Heat', HE);
+  const ehX = VF.filter(f => f.hazards['Extreme Heat'] === 'Extreme').length;
+  const ehE = VF.filter(f => HE.includes(f.hazards['Extreme Heat'])).reduce((s, f) => s + f.emp, 0);
+  const [ehS, ehL] = sev(eh / VF.length * 100);
+  items.push({ num: 2, title: 'Extreme Heat Exposure', severity: ehS, badge: ehL,
+    body: `<span class="sc-metric">${eh}</span> factories exposed to High/Extreme heat, affecting <span class="sc-metric">${(ehE/1000).toFixed(0)}K</span> workers. <span class="sc-metric">${ehX}</span> sites at Extreme level.` });
+
+  const rf = hxCount(VF, 'Riverine Flood', HE);
+  const rfX = VF.filter(f => f.hazards['Riverine Flood'] === 'Extreme').length;
+  const rfV = hxERV(VF, 'Riverine Flood', HE);
+  const [rfS, rfL] = sev(rf / VF.length * 100);
+  items.push({ num: 3, title: 'Riverine Flood Risk', severity: rfS, badge: rfL,
+    body: `<span class="sc-metric">${rf}</span> factories in High/Extreme riverine flood zones, with <span class="sc-metric">${rfX}</span> at Extreme. Total asset value exposed: <span class="sc-metric">$${(rfV/1000).toFixed(1)}B</span>.` });
+
+  const cf = VF.filter(f => HE.includes(f.hazards['Coastal Flood']) || HE.includes(f.hazards['Sea Level Rise'])).length;
+  const cfV = VF.filter(f => HE.includes(f.hazards['Coastal Flood']) || HE.includes(f.hazards['Sea Level Rise'])).reduce((s, f) => s + f.erv, 0);
+  const [cfS, cfL] = sev(cf / VF.length * 100);
+  items.push({ num: 4, title: 'Coastal Flood & Sea Level Rise', severity: cfS, badge: cfL,
+    body: `<span class="sc-metric">${cf}</span> factories exposed to High/Extreme coastal flood or sea level rise. Asset value at risk: <span class="sc-metric">$${(cfV/1000).toFixed(1)}B</span>.` });
+
+  const tc = hxCount(VF, 'Tropical Cyclone', HE);
+  const tcR = hxRev(VF, 'Tropical Cyclone', HE);
+  const [tcS, tcL] = sev(tc / VF.length * 100);
+  items.push({ num: 5, title: 'Tropical Cyclone Threat', severity: tcS, badge: tcL,
+    body: `<span class="sc-metric">${tc}</span> factories in High/Extreme tropical cyclone zones. Revenue at risk: <span class="sc-metric">$${(tcR/1000).toFixed(1)}B</span>/yr.` });
+
+  const wf = hxCount(VF, 'Wildfire', HE);
+  const wfR = hxRev(VF, 'Wildfire', HE);
+  const [wfS, wfL] = sev(wf / VF.length * 100);
+  items.push({ num: 6, title: 'Wildfire Proximity', severity: wfS, badge: wfL,
+    body: `<span class="sc-metric">${wf}</span> factories in High/Extreme wildfire zones. Revenue at risk: <span class="sc-metric">$${(wfR/1000).toFixed(1)}B</span>/yr.` });
+
+  const hazards = ['Riverine Flood', 'Coastal Flood', 'Drought/Water Stress', 'Extreme Heat', 'Wildfire', 'Tropical Cyclone', 'Sea Level Rise'];
+  const mh = VF.filter(f => hazards.filter(h => HE.includes(f.hazards[h])).length >= 3).length;
+  const mhTop = VF.filter(f => hazards.filter(h => HE.includes(f.hazards[h])).length >= 5);
+  const [mhS, mhL] = sev(mh / VF.length * 100);
+  items.push({ num: 7, title: 'Multi-Hazard Hotspots', severity: mhS, badge: mhL,
+    body: `<span class="sc-metric">${mh}</span> factories face 3+ simultaneous High/Extreme hazards. <span class="sc-metric">${mhTop.length}</span> sites face 5+ hazards concurrently.` });
+
+  const hv = VF.filter(f => f.erv >= 200 && ['High', 'Extreme'].includes(f.hazards['Overall Physical Risk']));
+  const hvV = hv.reduce((s, f) => s + f.erv, 0);
+  const hvDenom = VF.filter(f => f.erv >= 200).length || 1;
+  const [hvS, hvL] = sev(hv.length / hvDenom * 100);
+  items.push({ num: 8, title: 'High-Value Assets in Risk Zones', severity: hvS, badge: hvL,
+    body: `<span class="sc-metric">${hv.length}</span> factories with ERV &ge;$200M are in High/Extreme overall risk zones, representing <span class="sc-metric">$${(hvV/1000).toFixed(1)}B</span> in replacement value.` });
+
+  const totalEAL = VF.reduce((s, f) => s + f.ealM, 0);
+  const totalRev = VF.reduce((s, f) => s + f.revM, 0);
+  const topEAL = VF.filter(f => f.ealM >= 2).sort((a, b) => b.ealM - a.ealM);
+  const ealPct = totalRev > 0 ? totalEAL / totalRev * 100 : 0;
+  const [ealS, ealL] = sev(ealPct > 1 ? 50 : ealPct > 0.5 ? 30 : ealPct > 0.2 ? 15 : 5);
+  items.push({ num: 9, title: 'Expected Annual Loss (EAL)', severity: ealS, badge: ealL,
+    body: `Portfolio-wide EAL is <span class="sc-metric">$${totalEAL.toFixed(0)}M</span>/yr against <span class="sc-metric">$${(totalRev/1000).toFixed(1)}B</span> annual revenue. <span class="sc-metric">${topEAL.length}</span> factories each lose &ge;$2M/yr in expected climate disruption costs.` });
+
+  const ext = VF.filter(f => f.prob >= 0.12 && f.duration >= 25);
+  const extR = ext.reduce((s, f) => s + f.revM, 0);
+  const ext30 = ext.reduce((s, f) => s + f.stop30M, 0);
+  const [extS, extL] = sev(ext.length / VF.length * 100);
+  items.push({ num: 10, title: 'Extended Shutdown Exposure', severity: extS, badge: extL,
+    body: `<span class="sc-metric">${ext.length}</span> factories face &ge;12% annual probability of a &ge;25-day disruption. Combined revenue: <span class="sc-metric">$${(extR/1000).toFixed(1)}B</span>/yr. A single 30-day stop across these sites would cost <span class="sc-metric">$${(ext30).toFixed(0)}M</span>.` });
+
+  document.getElementById('scorecard').innerHTML = `
+    <button class="sc-close" onclick="toggleScorecard()">&times;</button>
+    <h3>Climate Production Risk Scorecard</h3>
+    <div class="sc-sub">${label} &bull; 10 key indicators &bull; ${VF.length} sites analysed</div>
+    ${items.map(it => `
+      <div class="sc-item severity-${it.severity}">
+        <div class="sc-header">
+          <span class="sc-num">#${it.num}</span>
+          <span class="sc-title">${it.title}</span>
+          <span class="sc-badge ${it.severity}">${it.badge}</span>
+        </div>
+        <div class="sc-body">${it.body}</div>
+      </div>
+    `).join('')}
+  `;
+}
+
+// ===== PRODUCT CATEGORY EXTRACTION =====
+function extractProducts(type) {
+  const t = type;
+  const prods = [];
+  if (/Coffee|Nescaf|Nespresso|Dolce Gusto/i.test(t)) prods.push("Coffee");
+  if (/Pet food|Purina/i.test(t)) prods.push("Pet Food");
+  if (/\bDairy\b|\bdairy\b/i.test(t)) prods.push("Dairy");
+  if (/Confectionery|chocolate|Chocolate|KitKat|Smarties/i.test(t)) prods.push("Confectionery");
+  if (/\bWater\b|Perrier|Pellegrino|Vittel|Buxton|Henniez|Erikli|Levissima|La Vie|Louren|evian|Volvic|Badoit|AQUA|Bonafont/i.test(t)) prods.push("Water");
+  if (/\bBeverages\b|Milo|Nesquik|Yinlu/i.test(t)) prods.push("Beverages");
+  if (/Infant|infant|Baby|baby|Gerber|Cerelac|Guigoz|NAN\b|BEBA|Bledina|Aptamil|SGM/i.test(t)) prods.push("Infant Nutrition");
+  if (/Prepared|Maggi|Herta/i.test(t)) prods.push("Prepared Dishes");
+  if (/Cereals?|Cereal/i.test(t)) prods.push("Cereals");
+  if (/Frozen|Stouffer|Lean Cuisine|Buitoni/i.test(t)) prods.push("Frozen Food");
+  if (/\bHQ\b|R&D|PTC|regional.*HQ|ESAR HQ/i.test(t)) prods.push("HQ / R&D");
+  if (/Ice cream|ice cream/i.test(t)) prods.push("Ice Cream");
+  if (/Health Science|NHSc/i.test(t)) prods.push("Health Science");
+  if (/Logistics|distribution/i.test(t)) prods.push("Logistics");
+  if (/Plant.based|Alpro|Silk/i.test(t)) prods.push("Plant-Based");
+  if (/Medical.nutrition|Nutricia|Fortimel/i.test(t)) prods.push("Medical Nutrition");
+  if (/Fresh.dairy|[Yy]ogurt|Dannon/i.test(t)) prods.push("Fresh Dairy");
+  if (/Specialized.nutrition/i.test(t)) prods.push("Specialized Nutrition");
+  return prods.length > 0 ? prods : ["Other"];
+}
+
+// ===== BUILD GRAPH DATA =====
+const nodes = [];
+const links = [];
+const regionSet = new Set();
+const countrySet = new Set();
+const productSet = new Set();
+const regionCompanies = {};
+const countryCompanies = {};
+const countryRegionMap = {};
+
+F.forEach(f => {
+  regionSet.add(f.region);
+  countrySet.add(f.country);
+  if (!countryRegionMap[f.country]) countryRegionMap[f.country] = f.region;
+  if (!regionCompanies[f.region]) regionCompanies[f.region] = new Set();
+  regionCompanies[f.region].add("nestle");
+  if (!countryCompanies[f.country]) countryCompanies[f.country] = new Set();
+  countryCompanies[f.country].add("nestle");
+  extractProducts(f.type).forEach(p => productSet.add(p));
+});
+
+D.forEach(f => {
+  regionSet.add(f.region);
+  countrySet.add(f.country);
+  if (!countryRegionMap[f.country]) countryRegionMap[f.country] = f.region;
+  if (!regionCompanies[f.region]) regionCompanies[f.region] = new Set();
+  regionCompanies[f.region].add("danone");
+  if (!countryCompanies[f.country]) countryCompanies[f.country] = new Set();
+  countryCompanies[f.country].add("danone");
+  extractProducts(f.type).forEach(p => productSet.add(p));
+});
+
+function companyTag(companies) {
+  if (companies.has("nestle") && companies.has("danone")) return "shared";
+  if (companies.has("nestle")) return "nestle";
+  return "danone";
+}
+
+// Company nodes
+const LOGO_NESTLE = "https://upload.wikimedia.org/wikipedia/en/d/d8/Nestl%C3%A9.svg";
+const LOGO_DANONE = "https://upload.wikimedia.org/wikipedia/en/a/a3/Danone_dairy_logo.svg";
+const NODE_RADIUS = 10;
+const COMPANY_RADIUS = 25;
+nodes.push({ id: "company:nestle", label: "Nestlé", nodeType: "company", radius: COMPANY_RADIUS, color: "#006B3F", company: "nestle", logo: LOGO_NESTLE });
+nodes.push({ id: "company:danone", label: "Danone", nodeType: "company", radius: COMPANY_RADIUS, color: "#0072CE", company: "danone", logo: LOGO_DANONE });
+
+// Region nodes (shared)
+regionSet.forEach(r => {
+  const co = regionCompanies[r];
+  nodes.push({ id: "r:" + r, label: r, nodeType: "region", radius: NODE_RADIUS, color: co.size > 1 ? "#8B5E3C" : (co.has("danone") ? "#0072CE" : "#006B3F"), company: companyTag(co) });
+  if (co.has("nestle")) links.push({ source: "company:nestle", target: "r:" + r, linkType: "company-region", relLabel: "has region", company: "nestle" });
+  if (co.has("danone")) links.push({ source: "company:danone", target: "r:" + r, linkType: "company-region", relLabel: "has region", company: "danone" });
+});
+
+// Country nodes (shared)
+countrySet.forEach(c => {
+  const co = countryCompanies[c];
+  nodes.push({ id: "c:" + c, label: c, nodeType: "country", radius: NODE_RADIUS, color: "#4682B4", company: companyTag(co) });
+  links.push({ source: "r:" + countryRegionMap[c], target: "c:" + c, linkType: "region-country", relLabel: "has country", company: companyTag(co) });
+});
+
+// Product nodes
+const productCompanyMap = {};
+productSet.forEach(p => { productCompanyMap[p] = new Set(); });
+F.forEach(f => extractProducts(f.type).forEach(p => productCompanyMap[p].add("nestle")));
+D.forEach(f => extractProducts(f.type).forEach(p => productCompanyMap[p].add("danone")));
+productSet.forEach(p => {
+  nodes.push({ id: "p:" + p, label: p, nodeType: "product", radius: NODE_RADIUS, color: "#7B1FA2", company: companyTag(productCompanyMap[p]) });
+});
+
+// Nestle factory nodes
+F.forEach((f, i) => {
+  const risk = f.hazards["Overall Physical Risk"] || "Medium";
+  const factoryColor = RC[risk] || "#999";
+  const fid = "nestle:f:" + i;
+  nodes.push({
+    id: fid, label: f.city, nodeType: "factory", radius: NODE_RADIUS, color: factoryColor,
+    data: f, risk: risk, company: "nestle"
+  });
+  links.push({ source: "c:" + f.country, target: fid, linkType: "country-factory", relLabel: "has factory", company: "nestle" });
+  extractProducts(f.type).forEach(p => {
+    links.push({ source: fid, target: "p:" + p, linkType: "factory-product", relLabel: "produces", company: "nestle" });
+  });
+});
+
+// Danone factory nodes
+D.forEach((f, i) => {
+  const risk = f.hazards["Overall Physical Risk"] || "Medium";
+  const factoryColor = RC[risk] || "#999";
+  const fid = "danone:f:" + i;
+  nodes.push({
+    id: fid, label: f.city, nodeType: "factory", radius: NODE_RADIUS, color: factoryColor,
+    data: f, risk: risk, company: "danone"
+  });
+  links.push({ source: "c:" + f.country, target: fid, linkType: "country-factory", relLabel: "has factory", company: "danone" });
+  extractProducts(f.type).forEach(p => {
+    links.push({ source: fid, target: "p:" + p, linkType: "factory-product", relLabel: "produces", company: "danone" });
+  });
+});
+
+// Supplier nodes
+S.forEach((s, i) => {
+  const risk = s.hazards["Overall Physical Risk"] || "Medium";
+  const sid = "s:" + i;
+  nodes.push({
+    id: sid, label: s.name, nodeType: "supplier", radius: NODE_RADIUS,
+    color: RC[risk] || "#999", data: s, risk: risk,
+    company: s.supplies === "both" ? "shared" : s.supplies
+  });
+  if (s.supplies === "nestle" || s.supplies === "both") {
+    links.push({ source: sid, target: "company:nestle", linkType: "supplier-company", relLabel: "supplies " + s.category.toLowerCase(), company: s.supplies === "both" ? "shared" : "nestle" });
+  }
+  if (s.supplies === "danone" || s.supplies === "both") {
+    links.push({ source: sid, target: "company:danone", linkType: "supplier-company", relLabel: "supplies " + s.category.toLowerCase(), company: s.supplies === "both" ? "shared" : "danone" });
+  }
+});
+
+// ===== STATS BAR =====
+function updateStatsBar() {
+  const visNodes = nodes.filter(n => isNodeVisible(n));
+  const ntCounts = { company: 0, region: 0, country: 0, factory: 0, product: 0, supplier: 0 };
+  const rlCounts = { "Extreme": 0, "High": 0, "Medium-High": 0, "Medium": 0, "Low-Medium": 0, "Low": 0 };
+  visNodes.forEach(n => {
+    if (ntCounts[n.nodeType] !== undefined) ntCounts[n.nodeType]++;
+    if (n.risk && rlCounts[n.risk] !== undefined) rlCounts[n.risk]++;
+  });
+  const ntNames = { company: "Company", region: "Region", country: "Country", factory: "Factory", product: "Product", supplier: "Supplier" };
+  Object.keys(ntCounts).forEach(t => {
+    const el = document.getElementById("lbl-nt-" + t);
+    if (el) el.textContent = ntNames[t] + " (" + ntCounts[t] + ")";
+  });
+  const rlNames = { "Extreme": "Extreme", "High": "High", "Medium-High": "Medium-High", "Medium": "Medium", "Low-Medium": "Low-Medium", "Low": "Low" };
+  Object.keys(rlCounts).forEach(r => {
+    const el = document.getElementById("lbl-rl-" + r);
+    if (el) el.textContent = rlNames[r] + " (" + rlCounts[r] + ")";
+  });
+}
+
+// ===== D3 FORCE GRAPH =====
+const width = window.innerWidth;
+const height = window.innerHeight - 85;
+const svg = d3.select("#graph").attr("width", width).attr("height", height);
+const tooltip = d3.select("#tooltip");
+
+const g = svg.append("g");
+
+// Zoom
+const zoomSlider = document.getElementById('zoom-slider');
+const zoomVal = document.getElementById('zoom-val');
+const zoom = d3.zoom()
+  .scaleExtent([0.1, 8])
+  .on("zoom", (event) => {
+    g.attr("transform", event.transform);
+    zoomSlider.value = event.transform.k;
+    zoomVal.textContent = Math.round(event.transform.k * 100) + '%';
+  });
+svg.call(zoom);
+
+function zoomTo(level) {
+  const k = parseFloat(level);
+  svg.transition().duration(300).call(zoom.scaleTo, k);
+}
+function zoomStep(delta) {
+  const cur = parseFloat(zoomSlider.value);
+  const next = Math.max(0.1, Math.min(8, cur + delta));
+  svg.transition().duration(200).call(zoom.scaleTo, next);
+}
+
+// Reset on click empty space
+svg.on("click", function(event) {
+  if (event.target === this || event.target.tagName === "svg") {
+    resetHighlight();
+  }
+});
+
+// Link distance function
+function linkDist(d) {
+  if (d.linkType === "supplier-company") return 250;
+  if (d.linkType === "company-region") return 200;
+  if (d.linkType === "region-country") return 150;
+  if (d.linkType === "country-factory") return 80;
+  return 60;
+}
+
+// ===== SAVE / RESTORE POSITIONS =====
+const STORAGE_KEY = "climate_network_positions";
+
+function saveLayout() {
+  const pos = {};
+  nodes.forEach(n => {
+    pos[n.id] = { x: n.x, y: n.y };
+  });
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(pos));
+    const btn = document.getElementById('save-layout-btn');
+    btn.textContent = 'Saved \u2713';
+    btn.style.background = '#16a34a';
+    setTimeout(() => { btn.textContent = 'Save Layout'; btn.style.background = '#475569'; }, 1500);
+  } catch(e) {}
+}
+
+function restorePositions() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const pos = JSON.parse(raw);
+    nodes.forEach(n => {
+      if (pos[n.id]) {
+        n.x = n.fx = pos[n.id].x;
+        n.y = n.fy = pos[n.id].y;
+      }
+    });
+    return true;
+  } catch(e) { return false; }
+}
+
+function clearLayout() {
+  localStorage.removeItem(STORAGE_KEY);
+  nodes.forEach(n => { n.fx = null; n.fy = null; });
+  simulation.alpha(1).restart();
+}
+
+const hadSavedLayout = restorePositions();
+
+const simulation = d3.forceSimulation(nodes)
+  .force("link", d3.forceLink(links).id(d => d.id).distance(linkDist))
+  .force("charge", d3.forceManyBody().strength(d => {
+    if (d.nodeType === "company") return -800;
+    if (d.nodeType === "region") return -500;
+    if (d.nodeType === "country") return -200;
+    if (d.nodeType === "product") return -150;
+    if (d.nodeType === "supplier") return -80;
+    return -30;
+  }))
+  .force("center", d3.forceCenter(width / 2, height / 2))
+  .force("collision", d3.forceCollide().radius(d => d.radius + 2))
+  .alphaDecay(0.02);
+
+if (hadSavedLayout) {
+  simulation.stop();
+  simulation.tick();
+}
+
+// Visibility helpers
+const nodeTypeState = { company: true, region: true, country: true, factory: true, product: true, supplier: true };
+const riskLevelState = { "Extreme": true, "High": true, "Medium-High": true, "Medium": true, "Low-Medium": true, "Low": true };
+
+function isNodeVisible(n) {
+  if (!nodeTypeState[n.nodeType]) return false;
+  if (n.risk && !riskLevelState[n.risk]) return false;
+  if (n.company === "nestle") return companyState.nestle;
+  if (n.company === "danone") return companyState.danone;
+  if (n.company === "shared") return companyState.nestle || companyState.danone;
+  return true;
+}
+
+function isLinkVisible(l) {
+  const sn = typeof l.source === "object" ? l.source : nodes.find(n => n.id === l.source);
+  const tn = typeof l.target === "object" ? l.target : nodes.find(n => n.id === l.target);
+  if (!sn || !tn) return false;
+  if (!isNodeVisible(sn) || !isNodeVisible(tn)) return false;
+  if (l.company === "nestle") return companyState.nestle;
+  if (l.company === "danone") return companyState.danone;
+  if (l.company === "shared") return companyState.nestle || companyState.danone;
+  return true;
+}
+
+// Draw links
+const link = g.append("g")
+  .selectAll("line")
+  .data(links)
+  .join("line")
+  .attr("stroke", d => {
+    if (d.linkType === "supplier-company") return "#FF9800";
+    if (d.linkType === "company-region") return d.company === "danone" ? "#0072CE" : "#006B3F";
+    if (d.linkType === "region-country") return "#006B3F";
+    if (d.linkType === "country-factory") return "#bbb";
+    return "#CE93D8";
+  })
+  .attr("stroke-width", 0.5)
+  .attr("stroke-dasharray", d => {
+    if (d.linkType === "supplier-company") return "5,3";
+    if (d.linkType === "factory-product") return "3,3";
+    return null;
+  })
+  .attr("stroke-opacity", d => {
+    if (d.linkType === "supplier-company") return 0.5;
+    if (d.linkType === "company-region") return 0.8;
+    if (d.linkType === "region-country") return 0.8;
+    if (d.linkType === "country-factory") return 0.4;
+    return 0.25;
+  });
+
+// Edge labels
+const edgeLabel = g.append("g")
+  .selectAll("text")
+  .data(links)
+  .join("text")
+  .attr("text-anchor", "middle")
+  .attr("dominant-baseline", "central")
+  .attr("font-size", d => {
+    if (d.linkType === "company-region" || d.linkType === "region-country") return "9px";
+    if (d.linkType === "supplier-company") return "7px";
+    return "7px";
+  })
+  .attr("font-weight", 400)
+  .attr("fill", d => {
+    if (d.linkType === "supplier-company") return "#E65100";
+    if (d.linkType === "company-region" || d.linkType === "region-country") return d.company === "danone" ? "#005299" : "#004D2C";
+    if (d.linkType === "country-factory") return "#888";
+    return "#9C27B0";
+  })
+  .attr("opacity", d => {
+    if (d.linkType === "company-region") return 0.9;
+    if (d.linkType === "region-country") return 0.9;
+    return 0;
+  })
+  .attr("pointer-events", "none")
+  .text(d => d.relLabel);
+
+// Draw nodes
+const node = g.append("g")
+  .selectAll("circle")
+  .data(nodes)
+  .join("circle")
+  .attr("r", d => d.radius)
+  .attr("fill", d => d.nodeType === "company" ? "#fff" : d.color)
+  .attr("stroke", d => d.nodeType === "company" ? "#333" : d.color)
+  .attr("stroke-width", 0.5)
+  .attr("cursor", "pointer")
+  .call(d3.drag()
+    .on("start", dragstarted)
+    .on("drag", dragged)
+    .on("end", dragended));
+
+// Company logo images
+const companyNodes = nodes.filter(d => d.nodeType === "company");
+const logoSize = COMPANY_RADIUS * 1.6 - 7;
+const companyLogo = g.append("g")
+  .selectAll("image")
+  .data(companyNodes)
+  .join("image")
+  .attr("href", d => d.logo)
+  .attr("width", logoSize)
+  .attr("height", logoSize)
+  .attr("x", d => d.x - logoSize / 2)
+  .attr("y", d => d.y - logoSize / 2)
+  .attr("pointer-events", "none")
+  .attr("preserveAspectRatio", "xMidYMid meet");
+
+// Labels for company, region, country, product nodes
+const label = g.append("g")
+  .selectAll("text")
+  .data(nodes.filter(d => d.nodeType === "region" || d.nodeType === "country" || d.nodeType === "product"))
+  .join("text")
+  .attr("text-anchor", "middle")
+  .attr("dy", d => d.radius + 12)
+  .attr("font-size", d => {
+    if (d.nodeType === "region") return "11px";
+    if (d.nodeType === "country") return "9px";
+    return "8px";
+  })
+  .attr("font-weight", 400)
+  .attr("fill", d => {
+    if (d.nodeType === "region") return "#1a1a2e";
+    if (d.nodeType === "country") return "#334155";
+    return "#6A1B9A";
+  })
+  .attr("pointer-events", "none")
+  .text(d => d.label);
+
+// Supplier labels: name + risk level
+const supplierLabel = g.append("g")
+  .selectAll("g")
+  .data(nodes.filter(d => d.nodeType === "supplier"))
+  .join("g")
+  .attr("pointer-events", "none");
+
+supplierLabel.append("text")
+  .attr("text-anchor", "middle")
+  .attr("dy", d => d.radius + 11)
+  .attr("font-size", "7px")
+  .attr("font-weight", 400)
+  .attr("fill", "#333")
+  .text(d => d.label);
+
+supplierLabel.append("text")
+  .attr("text-anchor", "middle")
+  .attr("dy", d => d.radius + 20)
+  .attr("font-size", "6.5px")
+  .attr("font-weight", 400)
+  .attr("fill", d => RC[d.risk] || "#999")
+  .text(d => d.risk);
+
+// ===== TOOLTIP =====
+node.on("mouseover", function(event, d) {
+  let html = "";
+  if (d.nodeType === "factory" && d.data) {
+    const f = d.data;
+    const risk = d.risk;
+    const riskColor = RC[risk] || "#999";
+    const co = d.company === "danone" ? "Danone" : "Nestle";
+    html = `
+      <div class="tt-title">${f.city}</div>
+      <div class="tt-sub">${co} | ${f.country} | ${f.region}</div>
+      <div class="tt-sub">${f.type}</div>
+      <div class="tt-divider"></div>
+      <div class="tt-row"><span class="tt-label">Overall Risk</span><span class="tt-risk" style="background:${riskColor};color:#fff">${risk}</span></div>
+      <div class="tt-row"><span class="tt-label">ERV</span><span class="tt-val">$${f.erv}M</span></div>
+      <div class="tt-row"><span class="tt-label">Employees</span><span class="tt-val">${f.emp.toLocaleString()}</span></div>
+      <div class="tt-row"><span class="tt-label">Revenue</span><span class="tt-val">$${f.revM}M</span></div>
+      <div class="tt-row"><span class="tt-label">EAL</span><span class="tt-val">$${f.ealM}M</span></div>
+      <div class="tt-row"><span class="tt-label">VaR</span><span class="tt-val">$${f.var}M</span></div>
+      <div class="tt-row"><span class="tt-label">Prob</span><span class="tt-val">${(f.prob * 100).toFixed(1)}%</span></div>
+      <div class="tt-divider"></div>
+      ${Object.entries(f.hazards).filter(([k]) => k !== "Overall Physical Risk").map(([k, v]) =>
+        `<div class="tt-row"><span class="tt-label">${k}</span><span class="tt-risk" style="background:${RC[v]||'#999'};color:${['Low','Low-Medium','Medium'].includes(v)?'#333':'#fff'}">${v}</span></div>`
+      ).join("")}
+    `;
+  } else if (d.nodeType === "supplier" && d.data) {
+    const s = d.data;
+    const risk = d.risk;
+    const riskColor = RC[risk] || "#999";
+    html = `
+      <div class="tt-title">${s.name}</div>
+      <div class="tt-sub">${s.city}, ${s.country}</div>
+      <div class="tt-sub">Category: ${s.category} | Supplies: ${s.supplies === 'both' ? 'Nestl\u00e9 & Danone' : s.supplies === 'nestle' ? 'Nestl\u00e9' : 'Danone'}</div>
+      <div class="tt-divider"></div>
+      <div class="tt-row"><span class="tt-label">Overall Risk</span><span class="tt-risk" style="background:${riskColor};color:#fff">${risk}</span></div>
+      <div class="tt-divider"></div>
+      ${Object.entries(s.hazards).filter(([k]) => k !== "Overall Physical Risk").map(([k, v]) =>
+        `<div class="tt-row"><span class="tt-label">${k}</span><span class="tt-risk" style="background:${RC[v]||'#999'};color:${['Low','Low-Medium','Medium'].includes(v)?'#333':'#fff'}">${v}</span></div>`
+      ).join("")}
+    `;
+  } else if (d.nodeType === "company") {
+    const arr = d.company === "danone" ? D : F;
+    html = `<div class="tt-title">${d.label}</div><div class="tt-sub">Company</div><div class="tt-row"><span class="tt-label">Factories</span><span class="tt-val">${arr.length}</span></div>`;
+  } else if (d.nodeType === "region") {
+    const nCount = F.filter(f => f.region === d.label).length;
+    const dCount = D.filter(f => f.region === d.label).length;
+    const parts = [];
+    if (nCount) parts.push(`Nestlé: ${nCount}`);
+    if (dCount) parts.push(`Danone: ${dCount}`);
+    html = `<div class="tt-title">${d.label}</div><div class="tt-sub">Region</div><div class="tt-row"><span class="tt-label">Factories</span><span class="tt-val">${nCount + dCount}</span></div>${parts.map(p => `<div class="tt-row"><span class="tt-label">${p.split(':')[0]}</span><span class="tt-val">${p.split(':')[1].trim()}</span></div>`).join('')}`;
+  } else if (d.nodeType === "country") {
+    const nCount = F.filter(f => f.country === d.label).length;
+    const dCount = D.filter(f => f.country === d.label).length;
+    const parts = [];
+    if (nCount) parts.push(`Nestlé: ${nCount}`);
+    if (dCount) parts.push(`Danone: ${dCount}`);
+    html = `<div class="tt-title">${d.label}</div><div class="tt-sub">Country</div><div class="tt-row"><span class="tt-label">Factories</span><span class="tt-val">${nCount + dCount}</span></div>${parts.map(p => `<div class="tt-row"><span class="tt-label">${p.split(':')[0]}</span><span class="tt-val">${p.split(':')[1].trim()}</span></div>`).join('')}`;
+  } else if (d.nodeType === "product") {
+    const nCount = F.filter(f => extractProducts(f.type).includes(d.label)).length;
+    const dCount = D.filter(f => extractProducts(f.type).includes(d.label)).length;
+    html = `<div class="tt-title">${d.label}</div><div class="tt-sub">Product Category</div><div class="tt-row"><span class="tt-label">Nestle</span><span class="tt-val">${nCount}</span></div><div class="tt-row"><span class="tt-label">Danone</span><span class="tt-val">${dCount}</span></div>`;
+  }
+  tooltip.html(html)
+    .style("left", (event.pageX + 14) + "px")
+    .style("top", (event.pageY - 14) + "px")
+    .style("opacity", 1);
+})
+.on("mousemove", function(event) {
+  tooltip
+    .style("left", (event.pageX + 14) + "px")
+    .style("top", (event.pageY - 14) + "px");
+})
+.on("mouseout", function() {
+  tooltip.style("opacity", 0);
+});
+
+// ===== CLICK HIGHLIGHT =====
+const nodeById = {};
+nodes.forEach(n => nodeById[n.id] = n);
+
+node.on("click", function(event, d) {
+  event.stopPropagation();
+  highlightConnections(d);
+});
+
+function highlightConnections(d) {
+  const connectedIds = new Set([d.id]);
+  const connectedLinks = new Set();
+  links.forEach((l, i) => {
+    const sid = typeof l.source === "object" ? l.source.id : l.source;
+    const tid = typeof l.target === "object" ? l.target.id : l.target;
+    if (sid === d.id || tid === d.id) {
+      connectedIds.add(sid);
+      connectedIds.add(tid);
+      connectedLinks.add(i);
+    }
+  });
+
+  node.transition().duration(300)
+    .attr("opacity", n => connectedIds.has(n.id) ? 1 : 0.08);
+  companyLogo.transition().duration(300)
+    .attr("opacity", n => connectedIds.has(n.id) ? 1 : 0.08);
+  link.transition().duration(300)
+    .attr("opacity", (l, i) => connectedLinks.has(i) ? 0.8 : 0.03);
+  edgeLabel.transition().duration(300)
+    .attr("opacity", (l, i) => connectedLinks.has(i) ? 1 : 0);
+  label.transition().duration(300)
+    .attr("opacity", n => connectedIds.has(n.id) ? 1 : 0.08);
+}
+
+function resetHighlight() {
+  applyVisibility();
+}
+
+// ===== VISIBILITY =====
+function applyVisibility() {
+  node.transition().duration(300)
+    .attr("opacity", n => isNodeVisible(n) ? 1 : 0)
+    .attr("pointer-events", n => isNodeVisible(n) ? "all" : "none");
+  link.transition().duration(300)
+    .attr("opacity", l => {
+      if (!isLinkVisible(l)) return 0;
+      if (l.linkType === "supplier-company") return 0.5;
+      if (l.linkType === "company-region") return 0.8;
+      if (l.linkType === "region-country") return 0.8;
+      if (l.linkType === "country-factory") return 0.4;
+      return 0.25;
+    })
+    .attr("pointer-events", l => isLinkVisible(l) ? "all" : "none");
+  edgeLabel.transition().duration(300)
+    .attr("opacity", l => {
+      if (!isLinkVisible(l)) return 0;
+      if (l.linkType === "company-region") return 0.9;
+      if (l.linkType === "region-country") return 0.9;
+      return 0;
+    });
+  companyLogo.transition().duration(300)
+    .attr("opacity", n => isNodeVisible(n) ? 1 : 0);
+  label.transition().duration(300)
+    .attr("opacity", n => isNodeVisible(n) ? 1 : 0);
+  supplierLabel.transition().duration(300)
+    .attr("opacity", n => isNodeVisible(n) ? 1 : 0);
+}
+
+// ===== TOGGLE COMPANY =====
+function toggleCompany(name) {
+  companyState[name] = !companyState[name];
+  const track = document.getElementById('switch-' + name);
+  if (companyState[name]) {
+    track.classList.add('on');
+  } else {
+    track.classList.remove('on');
+  }
+  applyVisibility();
+  updateStatsBar();
+  simulation.alpha(0.15).restart();
+}
+function toggleNodeType(type) {
+  nodeTypeState[type] = !nodeTypeState[type];
+  const track = document.getElementById('switch-nt-' + type);
+  if (nodeTypeState[type]) {
+    track.classList.add('on');
+  } else {
+    track.classList.remove('on');
+  }
+  applyVisibility();
+  updateStatsBar();
+  simulation.alpha(0.15).restart();
+}
+function toggleRiskLevel(level) {
+  riskLevelState[level] = !riskLevelState[level];
+  const track = document.getElementById('switch-rl-' + level);
+  if (riskLevelState[level]) {
+    track.classList.add('on');
+  } else {
+    track.classList.remove('on');
+  }
+  applyVisibility();
+  updateStatsBar();
+  simulation.alpha(0.15).restart();
+}
+document.addEventListener('click', e => {
+  const dd = document.getElementById('company-dropdown');
+  if (!dd.contains(e.target)) dd.classList.remove('open');
+});
+
+// ===== SIMULATION TICK =====
+function renderTick() {
+  link
+    .attr("x1", d => d.source.x)
+    .attr("y1", d => d.source.y)
+    .attr("x2", d => d.target.x)
+    .attr("y2", d => d.target.y);
+  edgeLabel
+    .attr("x", d => (d.source.x + d.target.x) / 2)
+    .attr("y", d => (d.source.y + d.target.y) / 2)
+    .attr("transform", d => {
+      const mx = (d.source.x + d.target.x) / 2;
+      const my = (d.source.y + d.target.y) / 2;
+      let angle = Math.atan2(d.target.y - d.source.y, d.target.x - d.source.x) * 180 / Math.PI;
+      if (angle > 90) angle -= 180;
+      if (angle < -90) angle += 180;
+      return `rotate(${angle},${mx},${my})`;
+    });
+  node
+    .attr("cx", d => d.x)
+    .attr("cy", d => d.y);
+  companyLogo
+    .attr("x", d => d.x - logoSize / 2)
+    .attr("y", d => d.y - logoSize / 2);
+  label
+    .attr("x", d => d.x)
+    .attr("y", d => d.y);
+  supplierLabel
+    .attr("transform", d => `translate(${d.x},${d.y})`);
+}
+
+simulation.on("tick", renderTick);
+
+if (hadSavedLayout) renderTick();
+
+// ===== DRAG =====
+function dragstarted(event, d) {
+  if (!event.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x;
+  d.fy = d.y;
+}
+function dragged(event, d) {
+  d.fx = event.x;
+  d.fy = event.y;
+}
+function dragended(event, d) {
+  if (!event.active) simulation.alphaTarget(0);
+}
+
+// Initial stats bar
+updateStatsBar();
+</script>
+</body>
+</html>
