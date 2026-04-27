@@ -133,6 +133,9 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   max-width: 200px;
 }
+#legend-header {
+  display: none;
+}
 .legend-section {
   margin-bottom: 10px;
 }
@@ -435,12 +438,32 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     right: auto;
     max-width: 100%;
     border-radius: 0;
-    padding: 10px 14px;
+    padding: 0;
     font-size: 10px;
+  }
+  #legend-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: #e2e8f0;
+    border-bottom: 1px solid #334155;
+  }
+  #legend-header .legend-arrow {
+    font-size: 10px;
+    transition: transform 0.2s;
+  }
+  #legend.collapsed #legend-header .legend-arrow { transform: rotate(-90deg); }
+  #legend-content {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
+    padding: 10px 14px;
   }
+  #legend.collapsed #legend-content { display: none; }
   .legend-section { margin-bottom: 0; min-width: 140px; flex: 1; }
   .legend-section-title { font-size: 9px; }
   .legend-toggle { font-size: 10px; gap: 5px; margin-bottom: 2px; }
@@ -501,6 +524,10 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 
 
 <div id="legend">
+  <div id="legend-header" onclick="document.getElementById('legend').classList.toggle('collapsed')">
+    <span>Filters</span><span class="legend-arrow">&#9660;</span>
+  </div>
+  <div id="legend-content">
   <div class="legend-section">
     <div class="legend-section-title">Node Types</div>
     <div class="legend-toggle" onclick="toggleNodeType('company')"><span class="legend-circle" style="width:12px;height:12px;background:linear-gradient(135deg,#006B3F,#0072CE);"></span><span id="lbl-nt-company">Company</span><div class="switch-track on" id="switch-nt-company" style="--on-color:#006B3F;"><div class="switch-thumb"></div></div></div>
@@ -525,6 +552,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     <div class="legend-item"><span class="legend-line" style="width:20px;background:#aaa;height:1px;"></span> Country &rarr; Factory</div>
     <div class="legend-item"><span class="legend-line" style="width:20px;background:#CE93D8;height:1px;border-top:1px dashed #CE93D8;background:none;"></span> Factory &rarr; Product</div>
     <div class="legend-item"><span class="legend-line" style="width:20px;background:none;border-top:1.5px dashed #FF9800;"></span> Supplier &rarr; Company</div>
+  </div>
   </div>
 </div>
 
@@ -1467,6 +1495,10 @@ function dragended(event, d) {
 
 // Initial stats bar
 updateStatsBar();
+
+if (window.innerWidth <= 768) {
+  document.getElementById('legend').classList.add('collapsed');
+}
 </script>
 </body>
 </html>
