@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Relationship Network Explorer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { height: 100%; overflow: hidden; position: fixed; width: 100%; }
+  body {
+    font-family: -apple-system, 'SF Pro Display', system-ui, 'Segoe UI', sans-serif;
+    background: #0f1923; color: #e0e0e0; overflow: hidden;
+    touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  canvas {
+    display: block; cursor: grab; position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%;
+    z-index: 1; touch-action: none;
+  }
+  canvas:active { cursor: grabbing; }
+
+  /* Header */
+  #header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    background: linear-gradient(180deg, rgba(15,25,35,0.97) 0%, rgba(15,25,35,0.7) 70%, rgba(15,25,35,0) 100%);
+    padding: 14px 24px 32px; pointer-events: none;
+  }
+  #header h1 { font-size: 20px; font-weight: 700; color: #fff; pointer-events: auto; }
+  #header h1 span { color: #4a9eff; }
+  #header p { font-size: 12px; color: #6a7a8a; margin-top: 3px; }
+
+  /* Toolbar */
+  #toolbar {
+    position: fixed; top: 12px; right: 16px; z-index: 12;
+    display: flex; gap: 5px; align-items: center; flex-wrap: wrap; justify-content: flex-end;
+  }
+  #search-box {
+    background: rgba(20,30,42,0.92); border: 1px solid #2a3a4a; border-radius: 8px;
+    padding: 7px 12px 7px 32px; color: #e0e0e0; font-size: 13px; width: 180px; outline: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%23667788' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: 10px center;
+  }
+  #search-box::placeholder { color: #4a5a6a; }
+  #search-box:focus { border-color: #4a9eff; }
+  .tb-btn {
+    background: rgba(20,30,42,0.92); border: 1px solid #2a3a4a; border-radius: 8px;
+    color: #8899aa; padding: 7px 11px; font-size: 12px; cursor: pointer;
+    transition: all 0.15s; white-space: nowrap; user-select: none;
+  }
+  .tb-btn:hover { background: rgba(40,60,80,0.92); color: #fff; border-color: #3a5a7a; }
+  .tb-btn.active { background: rgba(74,158,255,0.2); border-color: #4a9eff; color: #4a9eff; }
+
+  /* Category filter pills */
+  #filters {
+    position: fixed; top: 48px; right: 16px; z-index: 12;
+    display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 500px;
+  }
+  .filter-pill {
+    background: rgba(20,30,42,0.88); border: 1px solid #2a3a4a; border-radius: 20px;
+    color: #8899aa; padding: 3px 11px; font-size: 11px; cursor: pointer;
+    transition: all 0.15s; user-select: none;
+  }
+  .filter-pill:hover { border-color: #4a7a9a; color: #bbb; }
+  .filter-pill.active { background: rgba(74,158,255,0.15); border-color: #4a9eff; color: #4a9eff; }
+
+  /* Legend */
+  #legend {
+    position: fixed; bottom: 16px; left: 16px; z-index: 10;
+    background: rgba(20,30,42,0.92); border: 1px solid #2a3a4a; border-radius: 10px;
+    padding: 14px 18px; font-size: 11px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); max-width: 220px;
+  }
+  #legend h3 { font-size: 11px; margin-bottom: 8px; color: #6a7a8a; text-transform: uppercase; letter-spacing: 0.5px; }
+  .legend-item { display: flex; align-items: center; margin-bottom: 5px; color: #aabbcc; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; flex-shrink: 0; }
+
+  /* Stats */
+  #stats {
+    position: fixed; bottom: 16px; right: 16px; z-index: 10;
+    background: rgba(20,30,42,0.92); border: 1px solid #2a3a4a; border-radius: 10px;
+    padding: 8px 14px; font-size: 11px; color: #6a7a8a; display: flex; gap: 14px;
+  }
+  .stat-val { color: #aabbcc; font-weight: 600; }
+
+  /* Timeline slider */
+  #timeline {
+    position: fixed; bottom: 56px; left: 50%; transform: translateX(-50%); z-index: 12;
+    background: rgba(20,30,42,0.94); border: 1px solid #2a3a4a; border-radius: 12px;
+    padding: 10px 22px 12px; display: flex; align-items: center; gap: 14px;
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  #timeline label { font-size: 11px; color: #6a7a8a; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px; }
+  #timeline-year { font-size: 16px; font-weight: 700; color: #4a9eff; min-width: 60px; text-align: center; }
+  #timeline-slider {
+    -webkit-appearance: none; appearance: none; width: 180px; height: 6px;
+    background: #2a3a4a; border-radius: 3px; outline: none; cursor: pointer;
+  }
+  #timeline-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 22px; height: 22px;
+    background: #4a9eff; border-radius: 50%; cursor: pointer; border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(74,158,255,0.4);
+  }
+  #timeline-slider::-moz-range-thumb {
+    width: 22px; height: 22px; background: #4a9eff; border-radius: 50%;
+    cursor: pointer; border: 2px solid #fff;
+  }
+  #timeline-change {
+    font-size: 10px; color: #ff9800; max-width: 200px; line-height: 1.4;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
+  @media (max-width: 700px) {
+    #timeline { padding: 8px 14px; gap: 8px; bottom: 48px; }
+    #timeline-slider { width: 100px; }
+    #timeline-year { font-size: 14px; min-width: 50px; }
+    #timeline-change { display: none; }
+  }
+  @supports (padding: env(safe-area-inset-bottom)) {
+    #timeline { bottom: calc(56px + env(safe-area-inset-bottom)); }
+  }
+
+  /* Transition change summary */
+  #change-summary {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 20;
+    background: rgba(16,24,34,0.95); border: 1px solid #3a4a5a; border-radius: 14px;
+    padding: 20px 28px; max-width: 420px; text-align: center;
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  #change-summary.visible { opacity: 1; }
+  #change-summary h3 { font-size: 18px; color: #4a9eff; margin-bottom: 10px; }
+  #change-summary .cs-added { color: #4caf50; font-size: 12px; line-height: 1.6; margin-bottom: 6px; }
+  #change-summary .cs-removed { color: #ff5252; font-size: 12px; line-height: 1.6; margin-bottom: 6px; }
+  #change-summary .cs-changed { color: #ff9800; font-size: 12px; line-height: 1.6; }
+
+  /* Tooltip - stays open so user can click page refs */
+  #tooltip {
+    position: fixed; z-index: 30; display: none;
+    background: rgba(16,24,34,0.96); border: 1px solid #3a4a5a; border-radius: 10px;
+    padding: 14px 18px; font-size: 13px; max-width: 380px; min-width: 220px;
+    max-height: 80vh; overflow-y: auto;
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    pointer-events: auto;
+  }
+  #tooltip.pinned { border-color: #4a9eff; }
+  #tooltip .tt-close {
+    position: absolute; top: 8px; right: 10px; background: none; border: none;
+    color: #556677; font-size: 16px; cursor: pointer; padding: 2px 6px; line-height: 1;
+    display: none;
+  }
+  #tooltip.pinned .tt-close { display: block; }
+  #tooltip .tt-close:hover { color: #fff; }
+  #tooltip h4 { font-size: 15px; color: #fff; margin-bottom: 4px; padding-right: 24px; }
+  .tt-badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 600; color: #fff; }
+  .tt-mcap {
+    display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px;
+    background: rgba(76,175,80,0.2); color: #66bb6a; font-weight: 700;
+    margin-left: 5px; margin-bottom: 8px; letter-spacing: 0.3px;
+  }
+  .tt-mcap.private { background: rgba(158,158,158,0.15); color: #9e9e9e; }
+  .tt-cat { font-size: 11px; color: #6a8aaa; margin-bottom: 8px; }
+  .tt-detail { color: #b0bfcf; line-height: 1.6; font-size: 12px; }
+  .tt-detail strong { color: #7eb8f7; }
+  .tt-ref {
+    margin-top: 12px; padding: 0; border-radius: 6px; overflow: hidden;
+    border: 1px solid rgba(74,158,255,0.2);
+    font-size: 12px; color: #8abadf;
+  }
+  .tt-ref-label {
+    padding: 6px 10px; background: rgba(74,158,255,0.06);
+    font-size: 10px; color: #5a7a9a; text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(74,158,255,0.1);
+  }
+  .tt-ref-links {
+    display: flex; flex-wrap: wrap; gap: 0; padding: 4px 6px;
+  }
+  .tt-page-link {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    padding: 6px 12px; margin: 3px;
+    border-radius: 5px; background: rgba(74,158,255,0.1);
+    color: #4a9eff; font-weight: 700; font-size: 13px;
+    cursor: pointer; text-decoration: none;
+    transition: all 0.15s; border: 1px solid transparent;
+  }
+  .tt-page-link:hover {
+    background: rgba(74,158,255,0.25); border-color: #4a9eff;
+    color: #fff; transform: scale(1.05);
+  }
+  .tt-page-link:active { transform: scale(0.97); }
+  .tt-page-icon {
+    font-size: 10px; opacity: 0.7;
+  }
+
+  /* Data editor panel */
+  #editor-overlay {
+    position: fixed; inset: 0; z-index: 50; display: none;
+    background: rgba(8,14,22,0.88); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  }
+  #editor {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 560px; max-width: 100vw; z-index: 51;
+    background: #141e2a; border-left: 1px solid #2a3a4a; display: none;
+    flex-direction: column; overflow: hidden;
+  }
+  #editor.open { display: flex; }
+  #editor-overlay.open { display: block; }
+  #editor-header {
+    padding: 18px 20px; border-bottom: 1px solid #2a3a4a;
+    display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+  }
+  #editor-header h3 { font-size: 16px; color: #fff; }
+  #editor-close { background: none; border: none; color: #8899aa; font-size: 22px; cursor: pointer; padding: 4px 8px; }
+  #editor-close:hover { color: #fff; }
+  #editor-tabs { display: flex; border-bottom: 1px solid #2a3a4a; flex-shrink: 0; }
+  .ed-tab {
+    flex: 1; padding: 10px; text-align: center; font-size: 12px; color: #6a7a8a;
+    cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s;
+  }
+  .ed-tab:hover { color: #aabbcc; }
+  .ed-tab.active { color: #4a9eff; border-bottom-color: #4a9eff; }
+  #editor-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+  #editor-body textarea {
+    width: 100%; min-height: 300px; background: #0d1520; border: 1px solid #2a3a4a;
+    border-radius: 8px; color: #c0d0e0; font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 12px; line-height: 1.5; padding: 14px; resize: vertical; outline: none;
+  }
+  #editor-body textarea:focus { border-color: #4a9eff; }
+  .ed-help { font-size: 11px; color: #4a5a6a; margin-top: 8px; line-height: 1.6; }
+  .ed-help code { background: rgba(74,158,255,0.1); padding: 1px 5px; border-radius: 3px; color: #7aacda; }
+  #editor-footer {
+    padding: 14px 20px; border-top: 1px solid #2a3a4a; display: flex; gap: 8px; flex-shrink: 0;
+  }
+  .ed-btn {
+    padding: 9px 18px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .ed-btn-primary { background: #4a9eff; color: #fff; }
+  .ed-btn-primary:hover { background: #3a8aef; }
+  .ed-btn-secondary { background: rgba(255,255,255,0.08); color: #aabbcc; }
+  .ed-btn-secondary:hover { background: rgba(255,255,255,0.14); }
+  .ed-btn-danger { background: rgba(255,82,82,0.15); color: #ff5252; margin-left: auto; }
+  .ed-btn-danger:hover { background: rgba(255,82,82,0.25); }
+  .ed-error { color: #ff5252; font-size: 12px; margin-top: 8px; display: none; }
+
+  /* Welcome overlay */
+  #welcome {
+    position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+    background: rgba(8,14,22,0.88); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  #welcome.hidden { display: none; }
+  #welcome-card {
+    background: #1a2a3a; border: 1px solid #2a4a5a; border-radius: 16px;
+    padding: 32px 36px; max-width: 540px; width: 92%; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  #welcome-card h2 { font-size: 22px; color: #fff; margin-bottom: 4px; }
+  #welcome-card .sub { font-size: 13px; color: #6a8a9a; margin-bottom: 20px; }
+  .w-row { display: flex; align-items: flex-start; margin-bottom: 12px; gap: 12px; }
+  .w-icon {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px;
+    background: rgba(74,158,255,0.12); display: flex; align-items: center; justify-content: center;
+    font-size: 15px; color: #4a9eff;
+  }
+  .w-text { font-size: 13px; color: #aabbcc; line-height: 1.5; }
+  .w-text strong { color: #e0e0e0; }
+  .w-actions { display: flex; gap: 10px; margin-top: 22px; }
+  .w-btn {
+    flex: 1; padding: 12px; border-radius: 10px; border: none; font-size: 14px;
+    font-weight: 600; cursor: pointer; transition: background 0.15s; text-align: center;
+  }
+  .w-btn-primary { background: #4a9eff; color: #fff; }
+  .w-btn-primary:hover { background: #3a8aef; }
+  .w-btn-secondary { background: rgba(255,255,255,0.08); color: #aabbcc; }
+  .w-btn-secondary:hover { background: rgba(255,255,255,0.14); color: #fff; }
+
+  /* Make buttons tappable on touch devices */
+  @media (pointer: coarse) {
+    .tb-btn { padding: 10px 14px; font-size: 13px; min-height: 44px; }
+    .filter-pill { padding: 8px 14px; font-size: 12px; min-height: 36px; }
+    .w-btn { min-height: 48px; font-size: 16px; }
+    #search-box { padding: 10px 12px 10px 34px; font-size: 16px; min-height: 44px; }
+    #editor-close { font-size: 28px; padding: 8px 12px; min-width: 44px; min-height: 44px; }
+    .ed-tab { padding: 14px 10px; font-size: 13px; }
+    .ed-btn { padding: 12px 20px; font-size: 15px; min-height: 44px; }
+    #editor-body textarea { font-size: 14px; min-height: 250px; }
+  }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    #header { padding: 10px 16px 28px; }
+    #header h1 { font-size: 15px; }
+    #header p { display: none; }
+    #toolbar { top: 8px; right: 8px; gap: 4px; }
+    #search-box { width: 110px; }
+    #filters { top: 54px; right: 8px; gap: 4px; }
+    #legend { padding: 8px 12px; font-size: 9px; max-width: 145px; bottom: 10px; left: 10px; }
+    #stats { gap: 6px; font-size: 9px; padding: 6px 10px; bottom: 10px; right: 10px; }
+    #editor { width: 100vw; }
+    #welcome-card { padding: 22px 20px; }
+    #welcome-card h2 { font-size: 18px; }
+    .w-row { margin-bottom: 10px; gap: 10px; }
+    .w-icon { width: 30px; height: 30px; font-size: 14px; }
+    .w-text { font-size: 12px; }
+  }
+
+  /* iPhone notch / Dynamic Island safe areas */
+  @supports (padding: env(safe-area-inset-top)) {
+    #header { padding-top: calc(14px + env(safe-area-inset-top)); }
+    #toolbar { top: calc(12px + env(safe-area-inset-top)); }
+    #filters { top: calc(48px + env(safe-area-inset-top)); }
+    #legend { bottom: calc(16px + env(safe-area-inset-bottom)); }
+    #stats { bottom: calc(16px + env(safe-area-inset-bottom)); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Welcome -->
+<div id="welcome">
+  <div id="welcome-card">
+    <h2>Relationship Network Explorer</h2>
+    <div class="sub">Interactive tool for mapping entities, customers, partners, and their connections</div>
+    <div class="w-row">
+      <div class="w-icon">&#8644;</div>
+      <div class="w-text"><strong>Drag nodes</strong> to rearrange. <strong>Scroll/pinch</strong> to zoom. <strong>Pan</strong> by dragging the background.</div>
+    </div>
+    <div class="w-row">
+      <div class="w-icon">&#9432;</div>
+      <div class="w-text"><strong>Hover or tap</strong> any node for details. <strong>Double-click</strong> to zoom in. <strong>Search</strong> or <strong>filter</strong> by category.</div>
+    </div>
+    <div class="w-row">
+      <div class="w-icon">&#9998;</div>
+      <div class="w-text"><strong>Edit Data</strong> to add your own entities and relationships. Changes are saved in your browser.</div>
+    </div>
+    <div class="w-row">
+      <div class="w-icon">&#8681;</div>
+      <div class="w-text"><strong>Export PNG</strong> for presentations. <strong>Import/Export JSON</strong> to share datasets with colleagues.</div>
+    </div>
+    <div class="w-actions">
+      <button class="w-btn w-btn-secondary" onclick="openEditorFromWelcome()">Edit Data</button>
+      <button class="w-btn w-btn-primary" onclick="dismissWelcome()">Explore Network</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<div id="header">
+  <h1 id="network-title">Relationship Network</h1>
+  <p>Drag nodes &bull; Scroll to zoom &bull; Hover for details &bull; Edit Data to customize</p>
+</div>
+
+<!-- Toolbar -->
+<div id="toolbar">
+  <input type="text" id="search-box" placeholder="Search...">
+  <button class="tb-btn active" id="btn-labels" onclick="toggleLabels()">Labels</button>
+  <button class="tb-btn" id="btn-physics" onclick="togglePhysics()">Freeze</button>
+  <button class="tb-btn" onclick="resetLayout()">Reset</button>
+  <button class="tb-btn" onclick="exportPNG()">PNG</button>
+  <button class="tb-btn" onclick="openEditor()">Edit Data</button>
+  <button class="tb-btn" onclick="showWelcome()">?</button>
+</div>
+
+<!-- Filters (dynamically populated) -->
+<div id="filters"></div>
+
+<!-- Legend (dynamically populated) -->
+<div id="legend">
+  <h3>Legend</h3>
+  <div id="legend-items"></div>
+</div>
+
+<!-- Stats -->
+<div id="stats">
+  <span><span class="stat-val" id="stat-nodes">0</span> entities</span>
+  <span><span class="stat-val" id="stat-edges">0</span> relationships</span>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip"></div>
+
+<!-- Data Editor -->
+<div id="editor-overlay" class=""></div>
+<div id="editor" class="">
+  <div id="editor-header">
+    <h3>Edit Network Data</h3>
+    <button id="editor-close" onclick="closeEditor()">&times;</button>
+  </div>
+  <div id="editor-tabs">
+    <div class="ed-tab active" onclick="switchTab('nodes',this)">Entities</div>
+    <div class="ed-tab" onclick="switchTab('edges',this)">Relationships</div>
+    <div class="ed-tab" onclick="switchTab('config',this)">Settings</div>
+    <div class="ed-tab" onclick="switchTab('import',this)">Import/Export</div>
+  </div>
+  <div id="editor-body">
+    <div id="tab-nodes">
+      <textarea id="nodes-input" spellcheck="false"></textarea>
+      <div class="ed-help">
+        One entity per line: <code>id | label | type | category | pages | detail</code><br>
+        <strong>type</strong> controls the color. Define types in Settings.<br>
+        <strong>category</strong> is used for filtering (e.g. segment, department).<br>
+        <strong>pages</strong> is the source document page reference (e.g. "5, 9-10").<br>
+        <strong>detail</strong> is shown on hover (supports &lt;strong&gt; tags).
+      </div>
+      <div class="ed-error" id="nodes-error"></div>
+    </div>
+    <div id="tab-edges" style="display:none">
+      <textarea id="edges-input" spellcheck="false"></textarea>
+      <div class="ed-help">
+        One relationship per line: <code>from_id | to_id | label</code><br>
+        Use the entity <strong>id</strong> (first column) from the Entities tab.
+      </div>
+      <div class="ed-error" id="edges-error"></div>
+    </div>
+    <div id="tab-config" style="display:none">
+      <textarea id="config-input" spellcheck="false"></textarea>
+      <div class="ed-help">
+        Define entity types and their colors. One per line: <code>type_key | Display Label | #hexcolor</code><br>
+        The first type is used as the "center" node (drawn largest).<br>
+        Example: <code>center | My Company | #4a9eff</code>
+      </div>
+      <div class="ed-error" id="config-error"></div>
+    </div>
+    <div id="tab-import" style="display:none">
+      <textarea id="json-area" spellcheck="false" placeholder="Paste JSON here to import, or click Export to generate..."></textarea>
+      <div class="ed-help">
+        <strong>Export</strong> to get a JSON snapshot of the full dataset. Share it with colleagues.<br>
+        <strong>Import</strong> by pasting JSON above and clicking Load.
+      </div>
+      <div class="ed-error" id="json-error"></div>
+    </div>
+  </div>
+  <div id="editor-footer">
+    <button class="ed-btn ed-btn-primary" onclick="applyChanges()">Apply Changes</button>
+    <button class="ed-btn ed-btn-secondary" id="btn-export-json" onclick="exportJSON()" style="display:none">Export JSON</button>
+    <button class="ed-btn ed-btn-secondary" id="btn-import-json" onclick="importJSON()" style="display:none">Load JSON</button>
+    <button class="ed-btn ed-btn-danger" onclick="loadSampleData()">Load Sample</button>
+  </div>
+</div>
+
+<!-- Change summary overlay -->
+<div id="change-summary"></div>
+
+<!-- Timeline slider -->
+<div id="timeline">
+  <label>Year</label>
+  <input type="range" id="timeline-slider" min="0" max="2" step="1" value="2">
+  <span id="timeline-year">FY2025</span>
+  <span id="timeline-change"></span>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+// ============================================
+// RELATIONSHIP NETWORK EXPLORER
+// Generic, self-contained, zero dependencies
+// ============================================
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const tooltipEl = document.getElementById('tooltip');
+const searchBox = document.getElementById('search-box');
+
+let W, H, dpr;
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  // Use visualViewport on iOS to get correct size behind address bar
+  if (window.visualViewport) {
+    W = window.visualViewport.width;
+    H = window.visualViewport.height;
+  } else {
+    W = window.innerWidth;
+    H = window.innerHeight;
+  }
+  // iOS Safari canvas size limit: keep under 16M pixels
+  const maxPixels = 16777216;
+  let canvasW = Math.floor(W * dpr);
+  let canvasH = Math.floor(H * dpr);
+  if (canvasW * canvasH > maxPixels) {
+    const scale = Math.sqrt(maxPixels / (canvasW * canvasH));
+    canvasW = Math.floor(canvasW * scale);
+    canvasH = Math.floor(canvasH * scale);
+    dpr = canvasW / W;
+  }
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resize);
+}
+resize();
+
+const DATA_VERSION = 7;
+
+// ========== NETWORK STATE ==========
+let nodes = [];
+let edges = [];
+let typeConfig = {}; // { type_key: { label, color, isCenter } }
+let nodeMap = {}; // { id: node } — fast lookup, replaces nodes.find()
+let networkTitle = 'Relationship Network';
+
+let showEdgeLabels = true;
+let physicsEnabled = true;
+let camera = { x: 0, y: 0, zoom: 1 };
+let dragging = null, panning = false, panStart = { x: 0, y: 0 }, camStart = { x: 0, y: 0 };
+let hoveredNode = null;
+let searchTerm = '';
+let activeFilter = 'all';
+let currentTab = 'nodes';
+let currentYearIdx = 2; // 0=FY2023, 1=FY2024, 2=FY2025
+
+// ========== TRANSITION ANIMATION STATE ==========
+let ghostNodes = []; // nodes departing (fade out)
+let ghostEdges = []; // edges departing
+let transitionTime = 0; // ms since last year switch
+const TRANSITION_DURATION = 1200; // ms for full transition
+let isTransitioning = false;
+
+// ========== MULTI-YEAR SAMPLE DATA (Qorvo FY2023–FY2025) ==========
+const YEAR_LABELS = ['FY2023', 'FY2024', 'FY2025'];
+const YEAR_CHANGES = [
+  '', // FY2023 = baseline
+  'Apple revenue 37%→46%; Added MPS as HPA competitor; Infineon, ON Semi still listed',
+  'Apple 46%→47%, Samsung 12%→10%; Divested China ops to Luxshare; Major competitor list overhaul; Added facilities'
+];
+
+// Types shared across all years
+const SHARED_TYPES = [
+  { key: 'center', label: 'Company (Center)', color: '#4a9eff' },
+  { key: 'major_customer', label: 'Major Customer (>10% rev)', color: '#ff5252' },
+  { key: 'customer', label: 'Customer', color: '#4caf50' },
+  { key: 'partner', label: 'Partner / Supply Chain', color: '#ff9800' },
+  { key: 'competitor_customer', label: 'Competitor-Customer', color: '#ab47bc' },
+  { key: 'competitor', label: 'Competitor', color: '#ef5350' },
+  { key: 'facility', label: 'Production Facility', color: '#26c6da' },
+];
+
+// Node definitions — 'years' array indicates which year indices the node appears in
+// If absent, appears in all years
+const ALL_NODES = [
+  // Center
+  { id:'qorvo', label:'Qorvo, Inc.', type:'center', category:'All', pages:'4', mcap:'~$8B', detail:{
+    0:'Global leader in RF, analog, and power technologies. Segments: HPA, CSG, ACG. ~8,500 employees. Ticker: QRVO. FY2023 revenue: <strong>$7.2B</strong>.',
+    1:'Global leader in RF, analog, and power technologies. Segments: HPA, CSG, ACG. ~7,400 employees. Ticker: QRVO. FY2024 revenue: <strong>$3.8B</strong>.',
+    2:'Global leader in RF, analog, and power technologies. Segments: HPA, CSG, ACG. ~6,200 employees, 23 countries. Ticker: QRVO. Market cap: <strong>~$8B</strong>.'
+  }},
+  // Major customers
+  { id:'apple', label:'Apple Inc.', type:'major_customer', category:'ACG', pages:'9, 16', mcap:'~$3.4T', detail:{
+    0:'<strong>37%</strong> of total revenue (FY2023, up from 33% in FY2022). Largest end customer via contract manufacturers.',
+    1:'<strong>46%</strong> of total revenue (FY2024, up from 37% in FY2023). Largest end customer. Revenue concentration increasing.',
+    2:'<strong>47%</strong> of total revenue (FY2025). Largest end customer. Sales through contract manufacturers. RF solutions for iPhones, iPads, Macs, Apple Watch.'
+  }},
+  { id:'samsung', label:'Samsung Electronics', type:'major_customer', category:'ACG', pages:'9, 16', mcap:'~$350B', detail:{
+    0:'<strong>12%</strong> of total revenue (FY2023, up from 11% in FY2022). RF solutions for Galaxy smartphones.',
+    1:'<strong>12%</strong> of total revenue (FY2024, same as FY2023). RF solutions for Galaxy smartphones.',
+    2:'<strong>10%</strong> of total revenue (FY2025, down from 12%). Second largest customer. RF solutions for Galaxy smartphones.'
+  }},
+  // Customers (all years)
+  { id:'defense_primes', label:'U.S. Defense Primes', type:'customer', category:'HPA', pages:'5', detail:'RF products and compound semiconductor foundry for defense and aerospace.' },
+  { id:'dod', label:'U.S. Dept. of Defense', type:'customer', category:'HPA', pages:'5, 8', detail:'Direct engagement. Richardson, TX is a DoD Category 1A "Trusted Source" foundry.' },
+  { id:'satcom', label:'LEO SATCOM Companies', type:'customer', category:'HPA', pages:'5', detail:'Products for satellites and airborne flat panel array terminals in LEO constellations.' },
+  { id:'base_station', label:'Base Station OEMs', type:'customer', category:'HPA', pages:'5', detail:'5G infrastructure: switches, filters, LNA modules, variable gain amplifiers.' },
+  { id:'industrial', label:'Industrial & Enterprise', type:'customer', category:'HPA', pages:'5', detail:'Power management, motor control, battery management. Factory automation, robotics, drones.' },
+  { id:'ai_datacenter', label:'AI Data Centers', type:'customer', category:'HPA', pages:'5', years:[2], detail:'AI-driven demand for efficient data center solid-state drive power solutions.' },
+  { id:'auto_tier1', label:'Auto Tier-1 Suppliers', type:'customer', category:'CSG', pages:'6', detail:'AEC-Q100 products. V2X, UWB, Wi-Fi, MEMS force-sensing.' },
+  { id:'consumer_iot', label:'Consumer IoT OEMs', type:'customer', category:'CSG', pages:'6', detail:'Connected home, AR/VR, gaming, secure access.' },
+  { id:'wifi_chipset', label:'Wi-Fi Chipset Providers', type:'customer', category:'CSG', pages:'6', detail:'Wi-Fi 6/7/8 front-end co-development. PAs, switches, LNAs, BAW filters, FEMs.' },
+  { id:'uwb_partners', label:'UWB Ecosystem Partners', type:'customer', category:'CSG', pages:'6', detail:'Hardware, software, solutions partners for UWB.' },
+  { id:'smartphone_oem', label:'Smartphone OEMs/ODMs', type:'customer', category:'ACG', pages:'7, 9', detail:'Highly integrated RF modules, PMICs, antenna tuners, filters, switches.' },
+  { id:'wearable_oem', label:'Wearable/Laptop OEMs', type:'customer', category:'ACG', pages:'7', detail:'Advanced cellular solutions for wearables, laptops, tablets.' },
+  // Partners
+  { id:'luxshare', label:'Luxshare Precision', type:'partner', category:'All', mcap:'~$30B', detail:{
+    0:'Assembly and test services partner. Qorvo operates its own China facilities (Beijing, Dezhou).',
+    1:'Assembly and test services partner. Qorvo operates its own China facilities (Beijing, Dezhou).',
+    2:'Assembly and test services. Qorvo <strong>divested China operations to Luxshare</strong> in Q1 FY2025.'
+  }},
+  { id:'distributors', label:'Distributors', type:'partner', category:'All', pages:'9, 17', detail:'Third-party distributors for technical support, order fulfillment, and inventory stocking.' },
+  { id:'contract_mfg', label:'Contract Manufacturers', type:'partner', category:'ACG', pages:'9', detail:'Intermediaries for Apple product delivery. Multiple contract manufacturers.' },
+  // Competitor-customers (all years)
+  { id:'broadcom', label:'Broadcom', type:'competitor_customer', category:'CSG/ACG', mcap:'~$800B', detail:'Dual role: competitor in CSG/ACG. Chipset supplier with system reference designs. Ticker: AVGO.' },
+  { id:'qualcomm', label:'Qualcomm', type:'competitor_customer', category:'CSG/ACG', mcap:'~$190B', detail:'Dual role: competitor in CSG/ACG. Major chipset supplier. Ticker: QCOM.' },
+  // HPA competitors — all three years
+  { id:'adi', label:'Analog Devices', type:'competitor', category:'HPA', mcap:'~$105B', detail:'Competes in HPA. Major analog/mixed-signal. Ticker: ADI.' },
+  { id:'macom', label:'MACOM Technology', type:'competitor', category:'HPA', mcap:'~$11B', detail:'Competes in HPA. RF semiconductor solutions. Ticker: MTSI.' },
+  { id:'nxp', label:'NXP Semiconductors', type:'competitor', category:'HPA/CSG', mcap:'~$60B', detail:'Competes in HPA and CSG. Broad semiconductor portfolio. Ticker: NXPI.' },
+  { id:'ti', label:'Texas Instruments', type:'competitor', category:'HPA', mcap:'~$175B', detail:'Competes in HPA. Broad analog and embedded. Ticker: TXN.' },
+  // HPA competitors — FY2023 & FY2024 only
+  { id:'infineon', label:'Infineon Technologies', type:'competitor', category:'HPA', years:[0,1], mcap:'~$45B', detail:'Competes in HPA (FY2023-24). Power and sensor solutions. Ticker: IFNNY. <strong>Dropped from FY2025 10-K competitor list</strong>.' },
+  { id:'onsemi', label:'ON Semiconductor', type:'competitor', category:'HPA', years:[0,1], mcap:'~$30B', detail:'Competes in HPA (FY2023-24). Intelligent power and sensing. Ticker: ON. <strong>Dropped from FY2025 10-K competitor list</strong>.' },
+  { id:'stmicro', label:'STMicroelectronics', type:'competitor', category:'HPA', years:[0,1], mcap:'~$28B', detail:'Competes in HPA (FY2023-24). Broad semiconductor. Ticker: STM. <strong>Dropped from FY2025 10-K competitor list</strong>.' },
+  { id:'sumitomo', label:'Sumitomo Electric', type:'competitor', category:'HPA', years:[0,1], mcap:'~$8B', detail:'Competes in HPA (FY2023-24). Device innovations. <strong>Dropped from FY2025 10-K competitor list</strong>.' },
+  { id:'wolfspeed', label:'Wolfspeed', type:'competitor', category:'HPA', years:[0,1], mcap:'~$2B', detail:'Competes in HPA (FY2023-24). SiC and GaN technology. Ticker: WOLF. <strong>Dropped from FY2025 10-K competitor list</strong>.' },
+  // HPA competitors — FY2024 & FY2025 only
+  { id:'mps', label:'Monolithic Power Systems', type:'competitor', category:'HPA', years:[1,2], mcap:'~$35B', detail:'Competes in HPA. High-performance power management. Ticker: MPWR. <strong>Added in FY2024</strong>.' },
+  // HPA competitors — FY2025 only
+  { id:'minicircuits', label:'Mini-Circuits', type:'competitor', category:'HPA', years:[2], mcap:'Private', detail:'Competes in HPA. RF/microwave components. <strong>Privately held. New in FY2025</strong>.' },
+  { id:'silergy', label:'Silergy Corp.', type:'competitor', category:'HPA', years:[2], mcap:'~$7B', detail:'Competes in HPA. Power management IC. <strong>New in FY2025</strong>.' },
+  // CSG competitors (all years)
+  { id:'nordic', label:'Nordic Semiconductor', type:'competitor', category:'CSG', mcap:'~$3B', detail:'Competes in CSG. Wireless connectivity. Oslo SE.' },
+  { id:'silabs', label:'Silicon Laboratories', type:'competitor', category:'CSG', mcap:'~$7B', detail:'Competes in CSG. IoT connectivity. Ticker: SLAB.' },
+  { id:'skyworks', label:'Skyworks Solutions', type:'competitor', category:'CSG/ACG', mcap:'~$15B', detail:'Competes in CSG and ACG. Analog/mixed-signal. Ticker: SWKS.' },
+  // CSG competitors — FY2025 only
+  { id:'richwave', label:'RichWave Technology', type:'competitor', category:'CSG', years:[2], mcap:'~$1B', detail:'Competes in CSG. RF front-end IC solutions. <strong>New in FY2025</strong>.' },
+  { id:'vanchip', label:'Vanchip Technology', type:'competitor', category:'CSG/ACG', years:[2], mcap:'Private', detail:'Competes in CSG/ACG. RF front-end solutions. <strong>Privately held. New in FY2025</strong>.' },
+  // ACG competitors (all years)
+  { id:'murata', label:'Murata Manufacturing', type:'competitor', category:'CSG/ACG', mcap:'~$38B', detail:'Competes in CSG and ACG. Major electronic components. Tokyo SE.' },
+  // ACG competitors — FY2025 only
+  { id:'maxscend', label:'Maxscend Microelectronics', type:'competitor', category:'ACG', years:[2], mcap:'~$4B', detail:'Competes in ACG. RF front-end for mobile. <strong>New in FY2025</strong>.' },
+  // Facilities — FY2025 only (data from FY2025 10-K page 33)
+  { id:'fac_greensboro', label:'Greensboro, NC', type:'facility', category:'HPA/ACG', years:[2], pages:'33', detail:'<strong>Corporate HQ + Wafer Fabrication</strong>. Owned facility.' },
+  { id:'fac_hillsboro', label:'Hillsboro, OR', type:'facility', category:'HPA/ACG', years:[2], pages:'33', detail:'<strong>Wafer Fabrication</strong>. Owned facility.' },
+  { id:'fac_richardson', label:'Richardson, TX', type:'facility', category:'HPA', years:[2], pages:'33, 5, 8', detail:'<strong>Wafer Fab + Assembly & Test</strong>. Owned. DoD Trusted Source foundry.' },
+  { id:'fac_costarica', label:'Heredia, Costa Rica', type:'facility', category:'CSG/ACG', pages:'33', detail:{
+    0:'<strong>Module/Filter Assembly & Test</strong>. Owned facility. Active operations.',
+    1:'<strong>Module/Filter Assembly & Test</strong>. Owned facility. Active operations.',
+    2:'<strong>Module/Filter Assembly & Test</strong>. Owned facility. <strong>Winding down by early 2026</strong>.'
+  }},
+  { id:'fac_nuremberg', label:'Nuremberg, Germany', type:'facility', category:'CSG/ACG', years:[2], pages:'33', detail:'<strong>Packaging & Test</strong>. Leased facility.' },
+  // China facilities — FY2023 & FY2024 only (divested in FY2025)
+  { id:'fac_china', label:'Beijing/Dezhou, China', type:'facility', category:'ACG', years:[0,1], detail:'<strong>Assembly & Test</strong>. Owned facilities. <strong>Divested to Luxshare in Q1 FY2025</strong>.' },
+];
+
+// Edge definitions — 'years' array indicates which year indices the edge appears in
+const ALL_EDGES = [
+  // Core customer edges (all years)
+  { from:'qorvo', to:'apple', label:{0:'RF solutions (37% rev)',1:'RF solutions (46% rev)',2:'RF solutions (47% rev)'} },
+  { from:'qorvo', to:'samsung', label:{0:'RF solutions (12% rev)',1:'RF solutions (12% rev)',2:'RF solutions (10% rev)'} },
+  { from:'qorvo', to:'defense_primes', label:'RF products & foundry' },
+  { from:'qorvo', to:'dod', label:'Direct engagement' },
+  { from:'qorvo', to:'satcom', label:'Satellite terminals' },
+  { from:'qorvo', to:'base_station', label:'Infrastructure products' },
+  { from:'qorvo', to:'industrial', label:'Power mgmt solutions' },
+  { from:'qorvo', to:'ai_datacenter', label:'SSD power solutions', years:[2] },
+  { from:'qorvo', to:'auto_tier1', label:'V2X, UWB, connectivity' },
+  { from:'qorvo', to:'consumer_iot', label:'Smart home, IoT' },
+  { from:'qorvo', to:'wifi_chipset', label:'Wi-Fi FEMs' },
+  { from:'qorvo', to:'uwb_partners', label:'UWB SoC & SiP' },
+  { from:'qorvo', to:'smartphone_oem', label:'Advanced cellular RF' },
+  { from:'qorvo', to:'wearable_oem', label:'RF modules' },
+  { from:'qorvo', to:'luxshare', label:{0:'Assembly & test partner',1:'Assembly & test partner',2:'Supply agreement (divested China ops)'} },
+  { from:'qorvo', to:'distributors', label:'Sales channel' },
+  { from:'qorvo', to:'contract_mfg', label:'Product delivery' },
+  { from:'contract_mfg', to:'apple', label:'Delivers to Apple' },
+  // Competitor-customers
+  { from:'qorvo', to:'broadcom', label:'Competitor & customer' },
+  { from:'qorvo', to:'qualcomm', label:'Competitor & customer' },
+  // HPA competitors — all years
+  { from:'qorvo', to:'adi', label:'Competes in HPA' },
+  { from:'qorvo', to:'macom', label:'Competes in HPA' },
+  { from:'qorvo', to:'nxp', label:'Competes in HPA/CSG' },
+  { from:'qorvo', to:'ti', label:'Competes in HPA' },
+  // HPA competitors — FY2023 & FY2024
+  { from:'qorvo', to:'infineon', label:'Competes in HPA', years:[0,1] },
+  { from:'qorvo', to:'onsemi', label:'Competes in HPA', years:[0,1] },
+  { from:'qorvo', to:'stmicro', label:'Competes in HPA', years:[0,1] },
+  { from:'qorvo', to:'sumitomo', label:'Competes in HPA', years:[0,1] },
+  { from:'qorvo', to:'wolfspeed', label:'Competes in HPA', years:[0,1] },
+  // HPA competitors — FY2024+
+  { from:'qorvo', to:'mps', label:'Competes in HPA', years:[1,2] },
+  // HPA competitors — FY2025 only
+  { from:'qorvo', to:'minicircuits', label:'Competes in HPA', years:[2] },
+  { from:'qorvo', to:'silergy', label:'Competes in HPA', years:[2] },
+  // CSG competitors
+  { from:'qorvo', to:'nordic', label:'Competes in CSG' },
+  { from:'qorvo', to:'silabs', label:'Competes in CSG' },
+  { from:'qorvo', to:'skyworks', label:'Competes in CSG/ACG' },
+  { from:'qorvo', to:'murata', label:'Competes in CSG/ACG' },
+  { from:'qorvo', to:'richwave', label:'Competes in CSG', years:[2] },
+  { from:'qorvo', to:'vanchip', label:'Competes in CSG/ACG', years:[2] },
+  { from:'qorvo', to:'maxscend', label:'Competes in ACG', years:[2] },
+  // Facilities
+  { from:'qorvo', to:'fac_greensboro', label:'HQ + Wafer fab (owned)', years:[2] },
+  { from:'qorvo', to:'fac_hillsboro', label:'Wafer fab (owned)', years:[2] },
+  { from:'qorvo', to:'fac_richardson', label:'Fab + A&T (DoD Trusted)', years:[2] },
+  { from:'qorvo', to:'fac_costarica', label:{0:'Assembly & test (active)',1:'Assembly & test (active)',2:'Assembly & test (winding down)'} },
+  { from:'qorvo', to:'fac_nuremberg', label:'Packaging & test (leased)', years:[2] },
+  { from:'fac_richardson', to:'dod', label:'Trusted Source foundry', years:[2] },
+  { from:'qorvo', to:'fac_china', label:'Assembly & test (owned)', years:[0,1] },
+  { from:'fac_china', to:'luxshare', label:'Divested to Luxshare Q1 FY2025', years:[1] },
+];
+
+function getDataForYear(yearIdx) {
+  const yi = yearIdx;
+  const filteredNodes = ALL_NODES
+    .filter(n => !n.years || n.years.includes(yi))
+    .map(n => ({
+      ...n,
+      detail: typeof n.detail === 'object' ? (n.detail[yi] || n.detail[Math.max(...Object.keys(n.detail).map(Number).filter(k => k <= yi))] || Object.values(n.detail)[0]) : n.detail,
+    }));
+
+  const nodeIds = new Set(filteredNodes.map(n => n.id));
+  const filteredEdges = ALL_EDGES
+    .filter(e => (!e.years || e.years.includes(yi)) && nodeIds.has(e.from) && nodeIds.has(e.to))
+    .map(e => ({
+      ...e,
+      label: typeof e.label === 'object' ? (e.label[yi] || e.label[Math.max(...Object.keys(e.label).map(Number).filter(k => k <= yi))] || Object.values(e.label)[0]) : e.label,
+    }));
+
+  return {
+    title: 'Qorvo, Inc. — Customer & Relationship Network (' + YEAR_LABELS[yi] + ')',
+    types: SHARED_TYPES,
+    nodes: filteredNodes,
+    edges: filteredEdges
+  };
+}
+
+function getSampleData() {
+  return getDataForYear(currentYearIdx);
+}
+
+// ========== DATA LOADING ==========
+function loadDataset(data) {
+  networkTitle = data.title || 'Relationship Network';
+  document.getElementById('network-title').textContent = networkTitle;
+
+  // Types
+  typeConfig = {};
+  (data.types || []).forEach((t, i) => {
+    typeConfig[t.key] = { label: t.label, color: t.color, isCenter: i === 0 };
+  });
+
+  // Nodes
+  nodes = (data.nodes || []).map(n => {
+    const isCenter = typeConfig[n.type] && typeConfig[n.type].isCenter;
+    return {
+      ...n,
+      radius: isCenter ? 42 : (n.type === 'major_customer' ? 34 : 22),
+      x: 0, y: 0, vx: 0, vy: 0
+    };
+  });
+
+  // Build lookup map
+  nodeMap = {};
+  nodes.forEach(n => { nodeMap[n.id] = n; });
+
+  // Compute radius based on edge count
+  const edgeCounts = {};
+  (data.edges || []).forEach(e => {
+    edgeCounts[e.from] = (edgeCounts[e.from] || 0) + 1;
+    edgeCounts[e.to] = (edgeCounts[e.to] || 0) + 1;
+  });
+  nodes.forEach(n => {
+    if (typeConfig[n.type] && typeConfig[n.type].isCenter) {
+      n.radius = 42;
+    } else {
+      const count = edgeCounts[n.id] || 0;
+      n.radius = Math.max(18, Math.min(36, 18 + count * 3));
+    }
+  });
+
+  edges = (data.edges || []).map(e => ({ ...e, width: 1.5 }));
+  // Make edges to/from center thicker
+  edges.forEach(e => {
+    const fromNode = nodeMap[e.from];
+    const toNode = nodeMap[e.to];
+    if ((fromNode && typeConfig[fromNode.type] && typeConfig[fromNode.type].isCenter) ||
+        (toNode && typeConfig[toNode.type] && typeConfig[toNode.type].isCenter)) {
+      const otherNode = (fromNode && typeConfig[fromNode.type] && typeConfig[fromNode.type].isCenter) ? toNode : fromNode;
+      if (otherNode && otherNode.radius > 28) e.width = 4;
+      else e.width = 2;
+    }
+  });
+
+  initPositions();
+  buildUI();
+  updateStats();
+  populateEditor();
+
+  // Save to localStorage
+  try {
+    localStorage.setItem('network_data', JSON.stringify(data));
+    localStorage.setItem('network_data_version', String(DATA_VERSION));
+  } catch(e) {}
+}
+
+function buildUI() {
+  // Build legend
+  const legendEl = document.getElementById('legend-items');
+  legendEl.innerHTML = '';
+  Object.entries(typeConfig).forEach(([key, cfg]) => {
+    legendEl.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${cfg.color}"></div>${cfg.label}</div>`;
+  });
+
+  // Build filters from unique categories
+  const cats = new Set();
+  nodes.forEach(n => {
+    if (n.category) n.category.split('/').forEach(c => cats.add(c.trim()));
+  });
+  const filtersEl = document.getElementById('filters');
+  filtersEl.innerHTML = '<div class="filter-pill active" onclick="setFilter(\'all\',this)">All</div>';
+  // Add type-based filters
+  Object.entries(typeConfig).forEach(([key, cfg]) => {
+    if (!cfg.isCenter) {
+      filtersEl.innerHTML += `<div class="filter-pill" onclick="setFilter('type:${key}',this)">${cfg.label.split('(')[0].trim()}</div>`;
+    }
+  });
+  // Add category filters
+  cats.forEach(c => {
+    if (c && c !== 'All') {
+      filtersEl.innerHTML += `<div class="filter-pill" onclick="setFilter('cat:${c}',this)">${c}</div>`;
+    }
+  });
+}
+
+function updateStats() {
+  document.getElementById('stat-nodes').textContent = nodes.length;
+  document.getElementById('stat-edges').textContent = edges.length;
+}
+
+// ========== INITIAL LAYOUT ==========
+function initPositions() {
+  // Group by type
+  const groups = {};
+  let centerNode = null;
+  nodes.forEach(n => {
+    if (typeConfig[n.type] && typeConfig[n.type].isCenter) {
+      centerNode = n;
+      n.x = 0; n.y = 0; n.vx = 0; n.vy = 0;
+    } else {
+      if (!groups[n.type]) groups[n.type] = [];
+      groups[n.type].push(n);
+    }
+  });
+
+  const typeKeys = Object.keys(groups);
+  const totalTypes = typeKeys.length;
+  typeKeys.forEach((type, gi) => {
+    const items = groups[type];
+    const arcStart = (gi / totalTypes) * Math.PI * 2 - Math.PI / 2;
+    const arcEnd = arcStart + (1 / totalTypes) * Math.PI * 2 * 0.85;
+    const dist = 280 + gi * 30;
+    items.forEach((n, i) => {
+      const t = items.length === 1 ? 0.5 : i / (items.length - 1);
+      const angle = arcStart + t * (arcEnd - arcStart);
+      n.x = Math.cos(angle) * dist;
+      n.y = Math.sin(angle) * dist;
+      n.vx = 0; n.vy = 0;
+    });
+  });
+}
+
+function resetLayout() {
+  initPositions();
+  camera = { x: 0, y: 0, zoom: 1 };
+  physicsEnabled = true;
+  document.getElementById('btn-physics').classList.remove('active');
+  document.getElementById('btn-physics').textContent = 'Freeze';
+}
+
+// ========== FILTERS ==========
+function setFilter(val, el) {
+  activeFilter = val;
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function isNodeVisible(n) {
+  if (typeConfig[n.type] && typeConfig[n.type].isCenter) return true;
+  if (activeFilter === 'all') return true;
+  if (activeFilter.startsWith('type:')) return n.type === activeFilter.slice(5);
+  if (activeFilter.startsWith('cat:')) {
+    const cat = activeFilter.slice(4);
+    return n.category && n.category.split('/').map(s => s.trim()).includes(cat);
+  }
+  return true;
+}
+
+// ========== TOGGLES ==========
+function toggleLabels() {
+  showEdgeLabels = !showEdgeLabels;
+  document.getElementById('btn-labels').classList.toggle('active', showEdgeLabels);
+}
+function togglePhysics() {
+  physicsEnabled = !physicsEnabled;
+  const btn = document.getElementById('btn-physics');
+  btn.classList.toggle('active', !physicsEnabled);
+  btn.textContent = physicsEnabled ? 'Freeze' : 'Unfreeze';
+}
+
+// ========== WELCOME ==========
+function dismissWelcome() {
+  document.getElementById('welcome').classList.add('hidden');
+  try { localStorage.setItem('network_welcome_seen', '1'); } catch(e) {}
+}
+function showWelcome() { document.getElementById('welcome').classList.remove('hidden'); }
+function openEditorFromWelcome() { dismissWelcome(); openEditor(); }
+try { if (localStorage.getItem('network_welcome_seen')) dismissWelcome(); } catch(e) {}
+
+// ========== EDITOR ==========
+function openEditor() {
+  document.getElementById('editor').classList.add('open');
+  document.getElementById('editor-overlay').classList.add('open');
+  populateEditor();
+}
+function closeEditor() {
+  document.getElementById('editor').classList.remove('open');
+  document.getElementById('editor-overlay').classList.remove('open');
+}
+document.getElementById('editor-overlay').addEventListener('click', closeEditor);
+
+function switchTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.ed-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-nodes').style.display = tab === 'nodes' ? '' : 'none';
+  document.getElementById('tab-edges').style.display = tab === 'edges' ? '' : 'none';
+  document.getElementById('tab-config').style.display = tab === 'config' ? '' : 'none';
+  document.getElementById('tab-import').style.display = tab === 'import' ? '' : 'none';
+  document.getElementById('btn-export-json').style.display = tab === 'import' ? '' : 'none';
+  document.getElementById('btn-import-json').style.display = tab === 'import' ? '' : 'none';
+}
+
+function populateEditor() {
+  // Nodes
+  const nodesText = nodes.map(n =>
+    `${n.id} | ${n.label} | ${n.type} | ${n.category || ''} | ${n.pages || ''} | ${(n.detail || '').replace(/\n/g, ' ')}`
+  ).join('\n');
+  document.getElementById('nodes-input').value = nodesText;
+
+  // Edges
+  const edgesText = edges.map(e => `${e.from} | ${e.to} | ${e.label || ''}`).join('\n');
+  document.getElementById('edges-input').value = edgesText;
+
+  // Config
+  const configText = Object.entries(typeConfig).map(([key, cfg]) =>
+    `${key} | ${cfg.label} | ${cfg.color}`
+  ).join('\n');
+  document.getElementById('config-input').value = configText;
+}
+
+function applyChanges() {
+  // Hide errors
+  document.querySelectorAll('.ed-error').forEach(e => { e.style.display = 'none'; });
+
+  try {
+    // Parse config
+    const configLines = document.getElementById('config-input').value.trim().split('\n').filter(l => l.trim());
+    const newTypes = [];
+    configLines.forEach(line => {
+      const parts = line.split('|').map(s => s.trim());
+      if (parts.length >= 3) {
+        newTypes.push({ key: parts[0], label: parts[1], color: parts[2] });
+      }
+    });
+    if (newTypes.length === 0) throw { tab: 'config', msg: 'At least one type is required.' };
+
+    // Parse nodes
+    const nodesLines = document.getElementById('nodes-input').value.trim().split('\n').filter(l => l.trim());
+    const newNodes = [];
+    const ids = new Set();
+    nodesLines.forEach((line, i) => {
+      const parts = line.split('|').map(s => s.trim());
+      if (parts.length < 3) throw { tab: 'nodes', msg: `Line ${i+1}: need at least id | label | type` };
+      if (ids.has(parts[0])) throw { tab: 'nodes', msg: `Line ${i+1}: duplicate id "${parts[0]}"` };
+      ids.add(parts[0]);
+      newNodes.push({
+        id: parts[0], label: parts[1], type: parts[2],
+        category: parts[3] || '', pages: parts[4] || '', detail: parts[5] || ''
+      });
+    });
+
+    // Parse edges
+    const edgesLines = document.getElementById('edges-input').value.trim().split('\n').filter(l => l.trim());
+    const newEdges = [];
+    edgesLines.forEach((line, i) => {
+      const parts = line.split('|').map(s => s.trim());
+      if (parts.length < 2) throw { tab: 'edges', msg: `Line ${i+1}: need at least from | to` };
+      if (!ids.has(parts[0])) throw { tab: 'edges', msg: `Line ${i+1}: unknown id "${parts[0]}"` };
+      if (!ids.has(parts[1])) throw { tab: 'edges', msg: `Line ${i+1}: unknown id "${parts[1]}"` };
+      newEdges.push({ from: parts[0], to: parts[1], label: parts[2] || '' });
+    });
+
+    // Apply
+    const data = {
+      title: networkTitle,
+      types: newTypes,
+      nodes: newNodes,
+      edges: newEdges
+    };
+    loadDataset(data);
+    closeEditor();
+  } catch (err) {
+    if (err.tab) {
+      const errEl = document.getElementById(err.tab + '-error') || document.getElementById('nodes-error');
+      errEl.textContent = err.msg;
+      errEl.style.display = 'block';
+    } else {
+      console.error(err);
+    }
+  }
+}
+
+function exportJSON() {
+  const data = {
+    title: networkTitle,
+    types: Object.entries(typeConfig).map(([key, cfg]) => ({ key, label: cfg.label, color: cfg.color })),
+    nodes: nodes.map(n => ({ id: n.id, label: n.label, type: n.type, category: n.category, pages: n.pages || '', mcap: n.mcap || '', detail: n.detail })),
+    edges: edges.map(e => ({ from: e.from, to: e.to, label: e.label }))
+  };
+  const json = JSON.stringify(data, null, 2);
+  document.getElementById('json-area').value = json;
+
+  // Also trigger download
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (networkTitle.replace(/[^a-z0-9]/gi, '_') || 'network') + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON() {
+  const errEl = document.getElementById('json-error');
+  errEl.style.display = 'none';
+  try {
+    const json = document.getElementById('json-area').value.trim();
+    if (!json) throw 'Paste JSON data first';
+    const data = JSON.parse(json);
+    if (!data.types || !data.nodes) throw 'Invalid format: needs "types" and "nodes" arrays';
+    loadDataset(data);
+    closeEditor();
+  } catch (err) {
+    errEl.textContent = typeof err === 'string' ? err : err.message;
+    errEl.style.display = 'block';
+  }
+}
+
+function loadSampleData() {
+  switchYear(currentYearIdx, false);
+  populateEditor();
+}
+
+// ========== EXPORT PNG ==========
+function exportPNG() {
+  const scale = 2;
+  const expCanvas = document.createElement('canvas');
+  const expW = 1920, expH = 1080;
+  expCanvas.width = expW * scale; expCanvas.height = expH * scale;
+  const ectx = expCanvas.getContext('2d');
+  ectx.scale(scale, scale);
+
+  ectx.fillStyle = '#0f1923';
+  ectx.fillRect(0, 0, expW, expH);
+
+  ectx.font = 'bold 22px "Segoe UI", system-ui, sans-serif';
+  ectx.fillStyle = '#fff';
+  ectx.fillText(networkTitle, 30, 38);
+
+  // Fit
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  nodes.forEach(n => {
+    if (!isNodeVisible(n)) return;
+    minX = Math.min(minX, n.x - n.radius - 40);
+    maxX = Math.max(maxX, n.x + n.radius + 40);
+    minY = Math.min(minY, n.y - n.radius - 40);
+    maxY = Math.max(maxY, n.y + n.radius + 40);
+  });
+  const gW = maxX - minX || 1, gH = maxY - minY || 1;
+  const zf = Math.min((expW - 60) / gW, (expH - 120) / gH, 1.8);
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+
+  ectx.save();
+  ectx.translate(expW / 2, expH / 2 + 20);
+  ectx.scale(zf, zf);
+  ectx.translate(-cx, -cy);
+
+  edges.forEach(e => {
+    const from = nodeMap[e.from];
+    const to = nodeMap[e.to];
+    if (!from || !to || !isNodeVisible(from) || !isNodeVisible(to)) return;
+    ectx.beginPath(); ectx.moveTo(from.x, from.y); ectx.lineTo(to.x, to.y);
+    ectx.strokeStyle = 'rgba(60,80,100,0.5)'; ectx.lineWidth = e.width || 1.5; ectx.stroke();
+    const mx = (from.x+to.x)/2, my = (from.y+to.y)/2;
+    if (e.label) {
+      ectx.font = '8px "Segoe UI", system-ui, sans-serif';
+      ectx.fillStyle = 'rgba(140,160,180,0.8)'; ectx.textAlign = 'center';
+      const ang = Math.atan2(to.y-from.y, to.x-from.x);
+      ectx.save(); ectx.translate(mx,my);
+      let ra = ang; if(ra>Math.PI/2)ra-=Math.PI; if(ra<-Math.PI/2)ra+=Math.PI;
+      ectx.rotate(ra); ectx.fillText(e.label, 0, -5); ectx.restore();
+    }
+  });
+  nodes.forEach(n => {
+    if (!isNodeVisible(n)) return;
+    const color = (typeConfig[n.type] && typeConfig[n.type].color) || '#888';
+    ectx.beginPath(); ectx.arc(n.x, n.y, n.radius, 0, Math.PI*2);
+    ectx.fillStyle = color; ectx.fill();
+    ectx.strokeStyle = 'rgba(255,255,255,0.35)'; ectx.lineWidth = 1.5; ectx.stroke();
+    ectx.font = `${typeConfig[n.type]&&typeConfig[n.type].isCenter?'bold 13':'10'}px "Segoe UI",system-ui,sans-serif`;
+    ectx.fillStyle = '#e0e0e0'; ectx.textAlign = 'center';
+    ectx.fillText(n.label, n.x, n.y + n.radius + 14);
+  });
+  ectx.restore();
+
+  // Legend
+  let ly = expH - 20;
+  const types = Object.entries(typeConfig);
+  ly -= types.length * 16 + 20;
+  ectx.font = 'bold 10px "Segoe UI",system-ui,sans-serif';
+  ectx.fillStyle = '#6a7a8a'; ectx.textAlign = 'left';
+  ectx.fillText('LEGEND', 30, ly); ly += 16;
+  ectx.font = '10px "Segoe UI",system-ui,sans-serif';
+  types.forEach(([k, cfg]) => {
+    ectx.beginPath(); ectx.arc(38, ly-3, 5, 0, Math.PI*2);
+    ectx.fillStyle = cfg.color; ectx.fill();
+    ectx.fillStyle = '#aabbcc'; ectx.fillText(cfg.label, 50, ly); ly += 16;
+  });
+
+  const link = document.createElement('a');
+  link.download = (networkTitle.replace(/[^a-z0-9]/gi,'_')||'network') + '.png';
+  link.href = expCanvas.toDataURL('image/png'); link.click();
+}
+
+// ========== PHYSICS ==========
+function simulate() {
+  if (!physicsEnabled) return;
+  const repulsion = 9000, springLen = 260, springK = 0.004, damping = 0.82, centerPull = 0.0008;
+
+  for (let i = 0; i < nodes.length; i++) {
+    const ni = nodes[i];
+    if (ni === dragging) continue;
+    if (!isNodeVisible(ni) && !(typeConfig[ni.type]&&typeConfig[ni.type].isCenter)) continue;
+    let fx = 0, fy = 0;
+
+    for (let j = 0; j < nodes.length; j++) {
+      if (i === j) continue;
+      const nj = nodes[j];
+      if (!isNodeVisible(nj) && !(typeConfig[nj.type]&&typeConfig[nj.type].isCenter)) continue;
+      let dx = ni.x - nj.x, dy = ni.y - nj.y;
+      let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      let force = repulsion / (dist*dist);
+      fx += (dx/dist)*force; fy += (dy/dist)*force;
+    }
+
+    edges.forEach(e => {
+      let other = null;
+      if (e.from === ni.id) other = nodeMap[e.to];
+      else if (e.to === ni.id) other = nodeMap[e.from];
+      if (other && (isNodeVisible(other) || (typeConfig[other.type]&&typeConfig[other.type].isCenter))) {
+        let dx = ni.x - other.x, dy = ni.y - other.y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        let force = (dist - springLen) * springK;
+        fx -= (dx/dist)*force; fy -= (dy/dist)*force;
+      }
+    });
+
+    fx -= ni.x * centerPull; fy -= ni.y * centerPull;
+    ni.vx = (ni.vx + fx * 0.25) * damping;
+    ni.vy = (ni.vy + fy * 0.25) * damping;
+    ni.x += ni.vx; ni.y += ni.vy;
+  }
+}
+
+// ========== COORDINATE TRANSFORMS ==========
+function screenToWorld(sx, sy) {
+  return { x: (sx - W/2) / camera.zoom + camera.x, y: (sy - H/2) / camera.zoom + camera.y };
+}
+function getNodeAt(sx, sy) {
+  const wp = screenToWorld(sx, sy);
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const n = nodes[i];
+    if (!isNodeVisible(n)) continue;
+    const dx = wp.x - n.x, dy = wp.y - n.y;
+    const hitR = Math.max(n.radius, 18);
+    if (dx*dx + dy*dy < hitR*hitR) return n;
+  }
+  return null;
+}
+
+// ========== DRAWING ==========
+function roundedRect(c, x, y, w, h, r) {
+  c.moveTo(x+r,y); c.lineTo(x+w-r,y);
+  c.quadraticCurveTo(x+w,y,x+w,y+r); c.lineTo(x+w,y+h-r);
+  c.quadraticCurveTo(x+w,y+h,x+w-r,y+h); c.lineTo(x+r,y+h);
+  c.quadraticCurveTo(x,y+h,x,y+h-r); c.lineTo(x,y+r);
+  c.quadraticCurveTo(x,y,x+r,y); c.closePath();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(W/2, H/2);
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.translate(-camera.x, -camera.y);
+
+  // Grid dots
+  if (camera.zoom > 0.35) {
+    const sp = 80;
+    const sx = Math.floor((camera.x - W/2/camera.zoom)/sp)*sp;
+    const sy = Math.floor((camera.y - H/2/camera.zoom)/sp)*sp;
+    const ex = camera.x + W/2/camera.zoom;
+    const ey = camera.y + H/2/camera.zoom;
+    ctx.fillStyle = 'rgba(40,55,70,0.25)';
+    for (let x = sx; x < ex; x += sp)
+      for (let y = sy; y < ey; y += sp)
+        ctx.fillRect(x-0.5, y-0.5, 1, 1);
+  }
+
+  // Edges
+  edges.forEach(e => {
+    const from = nodeMap[e.from];
+    const to = nodeMap[e.to];
+    if (!from || !to) return;
+    const fv = isNodeVisible(from), tv = isNodeVisible(to);
+    if (!fv && !tv) return;
+
+    const isHL = hoveredNode && (hoveredNode.id === e.from || hoveredNode.id === e.to);
+    const isSM = searchTerm && (from.label.toLowerCase().includes(searchTerm) || to.label.toLowerCase().includes(searchTerm));
+    const dim = (!fv || !tv) || ((hoveredNode || searchTerm) && !isHL && !isSM);
+
+    ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y);
+    ctx.strokeStyle = dim ? 'rgba(60,80,100,0.08)' :
+                      isHL ? 'rgba(120,184,247,0.75)' :
+                      isSM ? 'rgba(120,184,247,0.5)' : 'rgba(60,80,100,0.35)';
+    ctx.lineWidth = isHL ? (e.width||2)+1.5 : (e.width||1.5);
+    ctx.stroke();
+
+    if (showEdgeLabels && e.label && !dim && (isHL || (!hoveredNode && !searchTerm && camera.zoom > 0.6))) {
+      const mx = (from.x+to.x)/2, my = (from.y+to.y)/2;
+      ctx.font = '9px "Segoe UI",system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const ang = Math.atan2(to.y-from.y, to.x-from.x);
+      ctx.save(); ctx.translate(mx, my);
+      let ra = ang; if(ra>Math.PI/2)ra-=Math.PI; if(ra<-Math.PI/2)ra+=Math.PI;
+      ctx.rotate(ra);
+      const tw = ctx.measureText(e.label).width + 8;
+      ctx.fillStyle = 'rgba(15,25,35,0.75)';
+      ctx.beginPath(); roundedRect(ctx, -tw/2, -14, tw, 13, 4); ctx.fill();
+      ctx.fillStyle = isHL ? 'rgba(180,210,240,0.95)' : 'rgba(130,150,170,0.8)';
+      ctx.fillText(e.label, 0, -8);
+      ctx.restore();
+    }
+  });
+
+  // Update transition progress
+  let tProgress = 1;
+  if (isTransitioning) {
+    tProgress = Math.min(1, (performance.now() - transitionTime) / TRANSITION_DURATION);
+    if (tProgress >= 1) { isTransitioning = false; ghostNodes = []; ghostEdges = []; }
+  }
+  // Easing function
+  const ease = t => t < 0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+  const tEased = ease(tProgress);
+
+  // Ghost edges (fading out)
+  if (ghostNodes.length > 0) {
+    const ghostMap = {}; ghostNodes.forEach(n => { ghostMap[n.id] = n; });
+    const allMap = { ...nodeMap }; ghostNodes.forEach(n => { allMap[n.id] = n; });
+    ghostEdges.forEach(e => {
+      const from = allMap[e.from]; const to = allMap[e.to];
+      if (!from || !to) return;
+      ctx.globalAlpha = 0.4 * (1 - tEased);
+      ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y);
+      ctx.strokeStyle = '#ff5252'; ctx.lineWidth = 1.5; ctx.setLineDash([4,4]); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+    });
+  }
+
+  // Ghost nodes (departing — red fade & shrink)
+  ghostNodes.forEach(n => {
+    const shrink = 1 - tEased;
+    if (shrink <= 0.01) return;
+    const r = n.radius * shrink;
+    ctx.globalAlpha = 0.6 * shrink;
+    // Red-tinted circle
+    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,82,82,0.5)'; ctx.fill();
+    ctx.strokeStyle = '#ff5252'; ctx.lineWidth = 2; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+    // X mark
+    if (shrink > 0.3) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2;
+      const s = r * 0.4;
+      ctx.beginPath(); ctx.moveTo(n.x-s, n.y-s); ctx.lineTo(n.x+s, n.y+s); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(n.x+s, n.y-s); ctx.lineTo(n.x-s, n.y+s); ctx.stroke();
+    }
+    // Label
+    if (shrink > 0.4) {
+      ctx.font = '10px "Segoe UI",system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillStyle = '#ff5252'; ctx.fillText(n.label, n.x, n.y + r + 5);
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  // Nodes (with enter animation for new nodes)
+  nodes.forEach(n => {
+    const vis = isNodeVisible(n);
+    if (!vis && !(typeConfig[n.type]&&typeConfig[n.type].isCenter)) return;
+
+    const isH = hoveredNode === n;
+    const isConn = hoveredNode && edges.some(e =>
+      (e.from===hoveredNode.id && e.to===n.id)||(e.to===hoveredNode.id && e.from===n.id));
+    const isSM = searchTerm && n.label.toLowerCase().includes(searchTerm);
+    const dim = !vis || (hoveredNode && !isH && !isConn && !(typeConfig[hoveredNode.type]&&typeConfig[hoveredNode.type].isCenter)) || (searchTerm && !isSM);
+
+    const color = (typeConfig[n.type] && typeConfig[n.type].color) || '#888';
+
+    // Transition animation for new nodes
+    let enterScale = 1, enterAlpha = 1;
+    if (n._isNew && isTransitioning) {
+      n._animProgress = tEased;
+      enterScale = 0.3 + 0.7 * tEased;
+      enterAlpha = tEased;
+    }
+
+    const a = (dim ? 0.1 : 1) * enterAlpha;
+    const drawRadius = n.radius * enterScale;
+
+    // Green pulse glow for new nodes
+    if (n._isNew && isTransitioning && tProgress < 0.8) {
+      const pulseAlpha = 0.5 * (1 - tProgress / 0.8);
+      const pulseR = drawRadius * (2 + tProgress * 2);
+      ctx.beginPath();
+      const pg = ctx.createRadialGradient(n.x,n.y,drawRadius*0.5,n.x,n.y,pulseR);
+      pg.addColorStop(0, 'rgba(76,175,80,' + pulseAlpha + ')');
+      pg.addColorStop(1, 'rgba(76,175,80,0)');
+      ctx.fillStyle = pg; ctx.arc(n.x,n.y,pulseR,0,Math.PI*2); ctx.fill();
+    }
+
+    // Hover glow
+    if ((isH || isSM) && !dim) {
+      ctx.beginPath();
+      const grad = ctx.createRadialGradient(n.x,n.y,drawRadius*0.3,n.x,n.y,drawRadius*3);
+      grad.addColorStop(0, color+'35'); grad.addColorStop(1, color+'00');
+      ctx.fillStyle = grad; ctx.arc(n.x,n.y,drawRadius*3,0,Math.PI*2); ctx.fill();
+    }
+
+    // Circle
+    ctx.beginPath(); ctx.arc(n.x, n.y, drawRadius, 0, Math.PI*2);
+    ctx.globalAlpha = a;
+    const grad = ctx.createRadialGradient(n.x-drawRadius*0.3, n.y-drawRadius*0.3, 0, n.x, n.y, drawRadius);
+    grad.addColorStop(0, color+'ee'); grad.addColorStop(1, color+'aa');
+    ctx.fillStyle = grad; ctx.fill();
+    // Green border for new nodes during transition
+    if (n._isNew && isTransitioning) {
+      ctx.strokeStyle = '#4caf50'; ctx.lineWidth = 3;
+    } else {
+      ctx.strokeStyle = isH ? '#fff' : 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = isH ? 3 : 1.5;
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // "NEW" badge for entering nodes
+    if (n._isNew && isTransitioning && tProgress > 0.2 && tProgress < 0.9 && enterScale > 0.6) {
+      ctx.globalAlpha = a * Math.min(1, (tProgress-0.2)/0.3) * Math.min(1, (0.9-tProgress)/0.2);
+      ctx.font = 'bold 8px "Segoe UI",system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const bw = 28, bh = 14, bx = n.x + drawRadius*0.7, by = n.y - drawRadius*0.7;
+      ctx.fillStyle = '#4caf50';
+      ctx.beginPath(); roundedRect(ctx, bx-bw/2, by-bh/2, bw, bh, 4); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillText('NEW', bx, by);
+      ctx.globalAlpha = 1;
+    }
+
+    // Inner text
+    if (!dim && camera.zoom > 0.45 && n.category && !(typeConfig[n.type]&&typeConfig[n.type].isCenter)) {
+      ctx.globalAlpha = a;
+      ctx.font = '9px "Segoe UI",system-ui,sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(n.category.length > 8 ? n.category.slice(0,7)+'..' : n.category, n.x, n.y+1);
+      ctx.globalAlpha = 1;
+    }
+
+    // Label
+    if (!dim || isH || isSM) {
+      ctx.globalAlpha = (dim ? 0.12 : 1) * enterAlpha;
+      const isCenter = typeConfig[n.type] && typeConfig[n.type].isCenter;
+      ctx.font = `${isH?'bold ':''}${isCenter?14:11}px "Segoe UI",system-ui,sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      const ly = n.y + drawRadius + 7;
+      ctx.fillStyle = '#0f1923'; ctx.fillText(n.label, n.x+1, ly+1);
+      ctx.fillStyle = isH ? '#fff' : (n._isNew && isTransitioning ? '#4caf50' : '#ccdde8');
+      ctx.fillText(n.label, n.x, ly);
+      ctx.globalAlpha = 1;
+    }
+  });
+
+  ctx.restore();
+}
+
+// ========== TOOLTIP (pinnable, with clickable page links) ==========
+let tooltipPinned = false;
+let pinnedNode = null;
+
+// Source document config — maps year index to PDF filename
+const SOURCE_DOCS = { 0: 'Qorvo 2023', 1: 'Qorvo 2024', 2: 'Qorvo 1.pdf' };
+function getSourceDoc() { return SOURCE_DOCS[currentYearIdx] || 'Qorvo 1.pdf'; }
+
+function parsePageNumbers(pagesStr) {
+  // "5, 9-10, 16" → [{label:"5", page:5}, {label:"9-10", page:9}, {label:"16", page:16}]
+  if (!pagesStr) return [];
+  return pagesStr.split(',').map(s => s.trim()).filter(Boolean).map(s => {
+    const first = parseInt(s.split('-')[0], 10);
+    return { label: s, page: first };
+  });
+}
+
+function buildPagesHtml(node) {
+  const pages = parsePageNumbers(node.pages);
+  if (pages.length === 0) return '';
+
+  const links = pages.map(p =>
+    `<a class="tt-page-link" href="#" onclick="openSourcePage(${p.page}); return false;" title="Open 10-K at page ${p.page}">` +
+    `<span class="tt-page-icon">&#128196;</span> p.${p.label}</a>`
+  ).join('');
+
+  return `<div class="tt-ref">` +
+    `<div class="tt-ref-label">Source: ${YEAR_LABELS[currentYearIdx]} 10-K &mdash; click to open page</div>` +
+    `<div class="tt-ref-links">${links}</div>` +
+    `</div>`;
+}
+
+function openSourcePage(pageNum) {
+  // Open the PDF at the specified page in a new tab
+  const url = getSourceDoc() + '#page=' + pageNum;
+  window.open(url, '_blank');
+}
+
+function showTooltipFor(node, sx, sy) {
+  // Don't overwrite a pinned tooltip for a different node
+  if (tooltipPinned && pinnedNode !== node) return;
+
+  const cfg = typeConfig[node.type] || { label: node.type, color: '#888' };
+  const pagesHtml = buildPagesHtml(node);
+  const pinClass = tooltipPinned ? ' pinned' : '';
+
+  tooltipEl.className = pinClass;
+  const mcapHtml = node.mcap
+    ? `<span class="tt-mcap${node.mcap === 'Private' ? ' private' : ''}">${node.mcap === 'Private' ? 'Private' : 'Mkt Cap ' + node.mcap}</span>`
+    : '';
+  tooltipEl.innerHTML = `
+    <button class="tt-close" onclick="unpinTooltip()" title="Close">&times;</button>
+    <h4>${node.label}</h4>
+    <span class="tt-badge" style="background:${cfg.color}">${cfg.label}</span>${mcapHtml}
+    ${node.category ? `<div class="tt-cat">${node.category}</div>` : ''}
+    ${node.detail ? `<div class="tt-detail">${node.detail}</div>` : ''}
+    ${pagesHtml}
+  `;
+  tooltipEl.style.display = 'block';
+
+  // Position
+  tooltipEl.style.left = '0px';
+  tooltipEl.style.top = '0px';
+  const rect = tooltipEl.getBoundingClientRect();
+  let tx = sx + 18, ty = sy + 18;
+  if (tx + rect.width > W - 12) tx = sx - rect.width - 12;
+  if (ty + rect.height > H - 12) ty = sy - rect.height - 12;
+  tooltipEl.style.left = Math.max(8, tx) + 'px';
+  tooltipEl.style.top = Math.max(8, ty) + 'px';
+}
+
+function pinTooltip(node, sx, sy) {
+  tooltipPinned = true;
+  pinnedNode = node;
+  hoveredNode = node;
+  showTooltipFor(node, sx, sy);
+  tooltipEl.className = 'pinned';
+}
+
+function unpinTooltip() {
+  tooltipPinned = false;
+  pinnedNode = null;
+  hoveredNode = null;
+  tooltipEl.style.display = 'none';
+  tooltipEl.className = '';
+}
+
+function hideTooltipEl() {
+  // Don't hide if pinned
+  if (tooltipPinned) return;
+  tooltipEl.style.display = 'none';
+}
+
+// Keep tooltip visible when mouse enters the tooltip itself
+tooltipEl.addEventListener('mouseenter', () => {
+  if (!tooltipPinned && hoveredNode) {
+    // Auto-pin so user can click links
+    tooltipPinned = true;
+    pinnedNode = hoveredNode;
+    tooltipEl.className = 'pinned';
+  }
+});
+tooltipEl.addEventListener('mouseleave', () => {
+  if (tooltipPinned) {
+    // Small delay before unpinning — lets user move back if needed
+    setTimeout(() => {
+      if (tooltipPinned && !tooltipEl.matches(':hover')) {
+        unpinTooltip();
+      }
+    }, 400);
+  }
+});
+
+// ========== MOUSE EVENTS ==========
+canvas.addEventListener('mousedown', e => {
+  const node = getNodeAt(e.clientX, e.clientY);
+  if (node) {
+    dragging = node;
+    canvas.style.cursor = 'grabbing';
+  } else {
+    // Clicked empty space — unpin tooltip
+    if (tooltipPinned) unpinTooltip();
+    panning = true;
+    panStart = {x:e.clientX,y:e.clientY};
+    camStart = {x:camera.x,y:camera.y};
+    canvas.style.cursor = 'grabbing';
+  }
+});
+canvas.addEventListener('mousemove', e => {
+  if (dragging) {
+    const wp = screenToWorld(e.clientX, e.clientY);
+    dragging.x = wp.x; dragging.y = wp.y; dragging.vx = 0; dragging.vy = 0;
+  } else if (panning) {
+    camera.x = camStart.x - (e.clientX - panStart.x) / camera.zoom;
+    camera.y = camStart.y - (e.clientY - panStart.y) / camera.zoom;
+  } else if (!tooltipPinned) {
+    const node = getNodeAt(e.clientX, e.clientY);
+    if (node !== hoveredNode) {
+      hoveredNode = node;
+      canvas.style.cursor = node ? 'pointer' : 'grab';
+      if (node) showTooltipFor(node, e.clientX, e.clientY);
+      else hideTooltipEl();
+    } else if (node) {
+      showTooltipFor(node, e.clientX, e.clientY);
+    }
+  }
+});
+canvas.addEventListener('mouseup', e => {
+  // If we clicked (not dragged) a node, pin the tooltip
+  if (dragging && !panning) {
+    const node = getNodeAt(e.clientX, e.clientY);
+    if (node && node === dragging) {
+      pinTooltip(node, e.clientX, e.clientY);
+    }
+  }
+  dragging = null; panning = false;
+  canvas.style.cursor = hoveredNode ? 'pointer' : 'grab';
+});
+canvas.addEventListener('mouseleave', () => {
+  dragging = null; panning = false;
+  if (!tooltipPinned) {
+    hoveredNode = null;
+    hideTooltipEl();
+  }
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const wp = screenToWorld(e.clientX, e.clientY);
+  const factor = e.deltaY > 0 ? 0.92 : 1.08;
+  const nz = Math.max(0.15, Math.min(5, camera.zoom * factor));
+  camera.x = wp.x - (e.clientX - W/2) / nz;
+  camera.y = wp.y - (e.clientY - H/2) / nz;
+  camera.zoom = nz;
+}, { passive: false });
+canvas.addEventListener('dblclick', e => {
+  const node = getNodeAt(e.clientX, e.clientY);
+  if (node) { camera.x = node.x; camera.y = node.y; camera.zoom = Math.min(camera.zoom * 1.8, 3); }
+});
+
+// ========== TOUCH EVENTS ==========
+// ========== TOUCH (iOS-compatible) ==========
+let activeTouches = {};
+let lastPinchDist = 0;
+let lastPinchCenter = {x:0,y:0};
+let touchStartTime = 0;
+
+function handleTouchStart(e) {
+  // Only prevent default on canvas touches, not UI elements
+  if (e.target === canvas) e.preventDefault();
+  else return;
+
+  const changed = e.changedTouches;
+  for (let i = 0; i < changed.length; i++) {
+    activeTouches[changed[i].identifier] = {x: changed[i].clientX, y: changed[i].clientY};
+  }
+
+  const keys = Object.keys(activeTouches);
+  if (keys.length === 1) {
+    touchStartTime = Date.now();
+    const tx = changed[0].clientX, ty = changed[0].clientY;
+    const node = getNodeAt(tx, ty);
+    if (node) {
+      dragging = node;
+      hoveredNode = node;
+      showTooltipFor(node, tx, ty);
+    } else {
+      // Tapped empty space — unpin tooltip
+      if (tooltipPinned) unpinTooltip();
+      panning = true;
+      panStart = {x: tx, y: ty};
+      camStart = {x: camera.x, y: camera.y};
+    }
+  } else if (keys.length >= 2) {
+    // Switch to pinch-zoom
+    dragging = null;
+    panning = false;
+    hoveredNode = null;
+    hideTooltipEl();
+    const t1 = activeTouches[keys[0]], t2 = activeTouches[keys[1]];
+    lastPinchDist = Math.hypot(t1.x - t2.x, t1.y - t2.y) || 1;
+    lastPinchCenter = {x: (t1.x + t2.x) / 2, y: (t1.y + t2.y) / 2};
+    camStart = {x: camera.x, y: camera.y};
+  }
+}
+
+function handleTouchMove(e) {
+  if (e.target === canvas) e.preventDefault();
+  else return;
+
+  const changed = e.changedTouches;
+  for (let i = 0; i < changed.length; i++) {
+    activeTouches[changed[i].identifier] = {x: changed[i].clientX, y: changed[i].clientY};
+  }
+
+  const keys = Object.keys(activeTouches);
+  if (keys.length === 1) {
+    const tx = changed[0].clientX, ty = changed[0].clientY;
+    if (dragging) {
+      const wp = screenToWorld(tx, ty);
+      dragging.x = wp.x; dragging.y = wp.y;
+      dragging.vx = 0; dragging.vy = 0;
+    } else if (panning) {
+      camera.x = camStart.x - (tx - panStart.x) / camera.zoom;
+      camera.y = camStart.y - (ty - panStart.y) / camera.zoom;
+    }
+  } else if (keys.length >= 2) {
+    const t1 = activeTouches[keys[0]], t2 = activeTouches[keys[1]];
+    const dist = Math.hypot(t1.x - t2.x, t1.y - t2.y) || 1;
+    const ratio = dist / lastPinchDist;
+    camera.zoom = Math.max(0.15, Math.min(5, camera.zoom * ratio));
+    const center = {x: (t1.x + t2.x) / 2, y: (t1.y + t2.y) / 2};
+    camera.x = camStart.x - (center.x - lastPinchCenter.x) / camera.zoom;
+    camera.y = camStart.y - (center.y - lastPinchCenter.y) / camera.zoom;
+    lastPinchDist = dist;
+    camStart = {x: camera.x, y: camera.y};
+  }
+}
+
+function handleTouchEnd(e) {
+  if (e.target === canvas) e.preventDefault();
+
+  const changed = e.changedTouches;
+  for (let i = 0; i < changed.length; i++) {
+    delete activeTouches[changed[i].identifier];
+  }
+
+  // Tap detection: if short touch on a node, pin the tooltip
+  if (Object.keys(activeTouches).length === 0) {
+    if (hoveredNode && Date.now() - touchStartTime < 300) {
+      // It was a tap — pin the tooltip so user can tap page links
+      const tx = changed[0] ? changed[0].clientX : 0;
+      const ty = changed[0] ? changed[0].clientY : 0;
+      pinTooltip(hoveredNode, tx, ty);
+    } else if (!tooltipPinned) {
+      hoveredNode = null;
+      hideTooltipEl();
+    }
+    dragging = null;
+    panning = false;
+  }
+}
+
+canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
+canvas.addEventListener('touchmove', handleTouchMove, {passive: false});
+canvas.addEventListener('touchend', handleTouchEnd, {passive: false});
+canvas.addEventListener('touchcancel', handleTouchEnd, {passive: false});
+
+// ========== KEYBOARD ==========
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey||e.metaKey) && e.key === 'f') { e.preventDefault(); searchBox.focus(); }
+  if (e.key === 'Escape') { searchBox.value = ''; searchTerm = ''; searchBox.blur(); closeEditor(); }
+});
+searchBox.addEventListener('input', e => { searchTerm = e.target.value.toLowerCase().trim(); });
+
+// ========== PREVENT iOS BOUNCE/SCROLL ==========
+document.addEventListener('touchmove', function(e) {
+  // Allow scroll inside editor textarea and editor body
+  if (e.target.closest('#editor-body') || e.target.closest('#welcome-card') || e.target.closest('#timeline')) return;
+  if (e.target === canvas) return; // handled by canvas listeners
+  e.preventDefault();
+}, {passive: false});
+
+// Prevent double-tap zoom on iOS
+let lastTap = 0;
+document.addEventListener('touchend', function(e) {
+  const now = Date.now();
+  if (now - lastTap < 300 && e.target !== canvas) e.preventDefault();
+  lastTap = now;
+}, {passive: false});
+
+// ========== TIMELINE SLIDER ==========
+const timelineSlider = document.getElementById('timeline-slider');
+const timelineYear = document.getElementById('timeline-year');
+const timelineChange = document.getElementById('timeline-change');
+
+function switchYear(idx, preservePositions) {
+  currentYearIdx = idx;
+  timelineSlider.value = idx;
+  timelineYear.textContent = YEAR_LABELS[idx];
+  timelineChange.textContent = YEAR_CHANGES[idx] || '';
+
+  // Save old state for transition
+  const oldNodeIds = new Set(nodes.map(n => n.id));
+  const oldPositions = {};
+  if (preservePositions) {
+    nodes.forEach(n => { oldPositions[n.id] = { x: n.x, y: n.y, radius: n.radius }; });
+  }
+
+  // Unpin tooltip
+  if (tooltipPinned) unpinTooltip();
+  hoveredNode = null;
+
+  const data = getDataForYear(idx);
+  const newNodeIds = new Set(data.nodes.map(n => n.id));
+
+  // Build ghost nodes (departing — in old but not in new)
+  ghostNodes = [];
+  ghostEdges = [];
+  if (preservePositions) {
+    nodes.forEach(n => {
+      if (!newNodeIds.has(n.id)) {
+        ghostNodes.push({ ...n, ghostAlpha: 1.0 });
+      }
+    });
+    // Ghost edges: edges where either endpoint is departing
+    const ghostNodeIds = new Set(ghostNodes.map(n => n.id));
+    edges.forEach(e => {
+      if (ghostNodeIds.has(e.from) || ghostNodeIds.has(e.to)) {
+        ghostEdges.push({ ...e });
+      }
+    });
+  }
+
+  loadDataset(data);
+
+  // Restore positions & mark new nodes for animation
+  if (preservePositions) {
+    nodes.forEach(n => {
+      if (oldPositions[n.id]) {
+        n.x = oldPositions[n.id].x;
+        n.y = oldPositions[n.id].y;
+      }
+      // Mark as new (entering) for animation
+      n._isNew = !oldNodeIds.has(n.id);
+      n._animProgress = n._isNew ? 0 : 1;
+    });
+  }
+
+  // Start transition
+  transitionTime = performance.now();
+  isTransitioning = true;
+
+  // Show change summary
+  if (preservePositions && (ghostNodes.length > 0 || nodes.some(n => n._isNew))) {
+    const added = nodes.filter(n => n._isNew).map(n => n.label);
+    const removed = ghostNodes.map(n => n.label);
+    const csEl = document.getElementById('change-summary');
+    let html = '<h3>' + YEAR_LABELS[idx] + '</h3>';
+    if (added.length) html += '<div class="cs-added">+ ' + added.join(', ') + '</div>';
+    if (removed.length) html += '<div class="cs-removed">&minus; ' + removed.join(', ') + '</div>';
+    // Show revenue changes for major customers
+    const revNote = idx === 1 ? 'Apple 37%→46%' : idx === 2 ? 'Apple 46%→47%, Samsung 12%→10%' : '';
+    if (revNote) html += '<div class="cs-changed">' + revNote + '</div>';
+    csEl.innerHTML = html;
+    csEl.classList.add('visible');
+    setTimeout(() => { csEl.classList.remove('visible'); }, 2800);
+  }
+}
+
+timelineSlider.addEventListener('input', function() {
+  switchYear(parseInt(this.value), true);
+});
+
+// Allow touch interaction on timeline without canvas hijacking
+document.getElementById('timeline').addEventListener('touchstart', function(e) {
+  e.stopPropagation();
+}, {passive: true});
+document.getElementById('timeline').addEventListener('touchmove', function(e) {
+  e.stopPropagation();
+}, {passive: true});
+
+// ========== INIT ==========
+// Always load sample data for the timeline feature (version bump clears old data)
+try {
+  localStorage.removeItem('network_data');
+  localStorage.removeItem('network_data_version');
+} catch(e) {}
+loadDataset(getSampleData());
+timelineYear.textContent = YEAR_LABELS[currentYearIdx];
+timelineChange.textContent = YEAR_CHANGES[currentYearIdx] || '';
+
+// ========== ANIMATION ==========
+function loop() { simulate(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>
